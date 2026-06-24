@@ -198,9 +198,9 @@ export function AudioPlayer({ archive, viewer, controls, playSound, onEject }: P
       />
 
       {/* === DEVICE CHASSIS === */}
-      <div className="relative w-full max-w-2xl rounded-[32px] border-2 border-[oklch(0.25_0.02_60)] bg-[oklch(0.14_0.012_60)] p-6 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.04)]">
+      <div className="relative w-full max-w-2xl rounded-[32px] border-2 border-[#333333] bg-[#171717] p-6 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.04)]">
         {/* Central display panel */}
-        <div className="relative flex aspect-[16/9] w-full flex-col overflow-hidden rounded-[16px] border-[6px] border-black bg-[oklch(0.06_0.01_60)] shadow-[inset_0_0_80px_rgba(0,0,0,0.95)]">
+        <div className="relative flex aspect-[16/9] w-full flex-col overflow-hidden rounded-[16px] border-[6px] border-black bg-[#050505] shadow-[inset_0_0_80px_rgba(0,0,0,0.95)]">
           {/* Background layer: token or playback image */}
           <DisplayLayer
             useTokenAsDisplay={useTokenAsDisplay}
@@ -257,7 +257,7 @@ export function AudioPlayer({ archive, viewer, controls, playSound, onEject }: P
       )}
 
       {/* === CONTROLS === */}
-      <div className="flex flex-wrap items-center justify-center gap-2 rounded-md border border-[oklch(0.22_0.02_60)] bg-[oklch(0.13_0.012_60)] p-3 shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
+      <div className="flex flex-wrap items-center justify-center gap-2 rounded-md border border-[#2A2A2A] bg-[#141414] p-3 shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
         {controls.rw && <Btn label="−10s" onClick={handleRw}>◀◀</Btn>}
         {controls.play && <Btn label="Play" onClick={handlePlay} active={playing}>▶</Btn>}
         {controls.pause && <Btn label="Pause" onClick={handlePause}>❚❚</Btn>}
@@ -346,8 +346,8 @@ function Btn({
       title={label}
       className={`text-typewriter relative flex h-12 min-w-14 items-center justify-center border-b-4 px-3 text-sm transition-all active:translate-y-[2px] active:border-b-0 ${
         variant === "warn"
-          ? "border-amber-signal/40 bg-[oklch(0.18_0.02_60)] text-amber-signal hover:bg-amber-signal hover:text-primary-foreground"
-          : "border-black bg-[oklch(0.18_0.018_60)] text-muted-foreground hover:text-amber-signal"
+          ? "border-amber-signal/40 bg-[#222222] text-amber-signal hover:bg-amber-signal hover:text-primary-foreground"
+          : "border-black bg-[#222222] text-muted-foreground hover:text-amber-signal"
       } ${active ? "text-amber-signal" : ""}`}
     >
       <span>{children}</span>

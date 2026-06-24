@@ -288,7 +288,7 @@ function Visualizador() {
 
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[oklch(0.08_0.008_60)] px-4 py-10">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#0A0A0A] px-4 py-10">
       {/* Background do visualizador (se houver) OU brilho ambiente padrão */}
       {backgroundUrl ? (
         <>
@@ -300,7 +300,7 @@ function Visualizador() {
           <div className="pointer-events-none absolute inset-0 bg-black/40" />
         </>
       ) : (
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,oklch(0.18_0.02_60)_0%,oklch(0.06_0.005_60)_70%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,#222222_0%,#050505_70%)]" />
       )}
 
       {/* Nome do dispositivo */}
@@ -324,7 +324,7 @@ function Visualizador() {
         {/* === THE TV / MONITOR === */}
         <div className="relative w-full">
           {/* Bezel */}
-          <div className="relative rounded-[40px] border-2 border-[oklch(0.25_0.02_60)] bg-[oklch(0.14_0.012_60)] p-8 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.04)]">
+          <div className="relative rounded-[40px] border-2 border-[#333333] bg-[#171717] p-8 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.04)]">
             {/* Inner screen */}
             <div className="relative aspect-[4/3] overflow-hidden rounded-[20px] border-[10px] border-black bg-black shadow-[inset_0_0_120px_rgba(0,0,0,1)]">
               {/* Video */}
@@ -371,7 +371,7 @@ function Visualizador() {
         </div>
 
         {/* === TRANSPORT CONTROLS === */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-2 rounded-md border border-[oklch(0.22_0.02_60)] bg-[oklch(0.13_0.012_60)] p-3 shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-2 rounded-md border border-[#2A2A2A] bg-[#141414] p-3 shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
           {controlsCfg.rw && (
             <HoldButton
               label="Retroceder"
@@ -513,8 +513,8 @@ function TransportBtn({
       title={label}
       className={`text-typewriter relative flex h-12 min-w-14 items-center justify-center border-b-4 px-3 text-sm transition-all active:translate-y-[2px] active:border-b-0 disabled:cursor-not-allowed disabled:opacity-30 ${
         variant === "warn"
-          ? "border-amber-signal/40 bg-[oklch(0.18_0.02_60)] text-amber-signal hover:bg-amber-signal hover:text-primary-foreground"
-          : "border-black bg-[oklch(0.18_0.018_60)] text-muted-foreground hover:text-amber-signal"
+          ? "border-amber-signal/40 bg-[#222222] text-amber-signal hover:bg-amber-signal hover:text-primary-foreground"
+          : "border-black bg-[#222222] text-muted-foreground hover:text-amber-signal"
       } ${active ? "text-amber-signal" : ""}`}
     >
       <span>{children}</span>
@@ -541,7 +541,7 @@ function HoldButton({
       {...handlers}
       disabled={disabled}
       title={label}
-      className="text-typewriter relative flex h-12 min-w-14 items-center justify-center border-b-4 border-black bg-[oklch(0.18_0.018_60)] px-3 text-sm text-muted-foreground transition-all hover:text-amber-signal active:translate-y-[2px] active:border-b-0 active:bg-amber-signal/20 active:text-amber-signal disabled:cursor-not-allowed disabled:opacity-30"
+      className="text-typewriter relative flex h-12 min-w-14 items-center justify-center border-b-4 border-black bg-[#222222] px-3 text-sm text-muted-foreground transition-all hover:text-amber-signal active:translate-y-[2px] active:border-b-0 active:bg-amber-signal/20 active:text-amber-signal disabled:cursor-not-allowed disabled:opacity-30"
     >
       <span>{children}</span>
       <span className="absolute -bottom-5 text-[9px] uppercase tracking-widest opacity-70">{label}</span>
@@ -551,7 +551,7 @@ function HoldButton({
 
 function TapeObject({ coverUrl, name, className = "" }: { coverUrl: string; name: string; className?: string }) {
   return (
-    <div className={`relative aspect-[1.6/1] w-56 shrink-0 border-2 border-[oklch(0.22_0.02_60)] bg-[oklch(0.1_0.01_60)] shadow-[0_20px_40px_rgba(0,0,0,0.7)] ${className}`}>
+    <div className={`relative aspect-[1.6/1] w-56 shrink-0 border-2 border-[#2A2A2A] bg-[#0F0F0F] shadow-[0_20px_40px_rgba(0,0,0,0.7)] ${className}`}>
       <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
       <div className="absolute inset-x-3 top-3 bg-paper/95 px-2 py-1 text-typewriter text-[10px] uppercase tracking-wider text-ink shadow">
         {name}
