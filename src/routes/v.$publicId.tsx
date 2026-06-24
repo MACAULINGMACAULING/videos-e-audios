@@ -1,10 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { VhsOverlay } from "@/components/vhs-overlay";
 import { readArchiveFile } from "@/lib/archive/export";
 import type { ArchiveFile, AudioArchive, MediaFormat, VideoArchive } from "@/lib/archive/types";
 import type { Tape } from "@/lib/tape-types";
-import { startRewind } from "@/lib/vhs-audio";
 import { preloadMediaSounds } from "@/lib/archive/media-sounds";
 import { playChainedSound, type SoundChainSources } from "@/lib/archive/sound-chain";
 import { getPublicViewerByPublicId } from "@/lib/archive/viewer-db";
