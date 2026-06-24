@@ -51,6 +51,7 @@ function CriadorAudio() {
   const [audioType, setAudioType] = useState("audio/mpeg");
   const [playbackImage, setPlaybackImage] = useState<Blob | null>(null);
   const [playbackImageType, setPlaybackImageType] = useState("image/png");
+  const [transcript, setTranscript] = useState("");
   const [compatibleViewers, setCompatibleViewers] = useState<ViewerId[]>(["cassette-recorder"]);
   const [autoplay, setAutoplay] = useState(true);
   const [loop, setLoop] = useState(false);
@@ -86,6 +87,7 @@ function CriadorAudio() {
         setPlaybackImage(a.payload.playbackImage);
         setPlaybackImageType(a.payload.playbackImageType ?? "image/png");
       }
+      setTranscript(a.payload.transcript ?? "");
       setCompatibleViewers(a.compatibleViewers);
       setAutoplay(a.autoplay);
       setLoop(a.loop);
@@ -144,6 +146,7 @@ function CriadorAudio() {
         audioType,
         playbackImage: playbackImage ?? undefined,
         playbackImageType: playbackImage ? playbackImageType : undefined,
+        transcript: transcript.trim() ? transcript : undefined,
       },
     };
   }
