@@ -338,50 +338,24 @@ function Visualizador() {
                   onLoadedMetadata={handleVideoLoaded}
                   loop={tape?.loop}
                   playsInline
-                  className="absolute inset-0 h-full w-full object-cover animate-flicker"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               )}
 
-              {/* Empty / loading screen */}
+              {/* Empty screen — no media inserted */}
               {stage === "empty" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-amber-signal/70">
                   <span className="text-typewriter text-xs uppercase tracking-[0.5em]">Sem Sinal</span>
                   <span className="text-serif-noir italic text-muted-foreground">— insira uma mídia —</span>
                 </div>
               )}
+              {/* Initial loading — kept as a technical necessity before playback */}
               {stage === "loading" && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black">
-                  <div className="text-center">
-                    <div className="text-typewriter text-xs uppercase tracking-[0.5em] text-amber-signal animate-pulse">
-                      Carregando Fita...
-                    </div>
-                    <div className="mt-3 h-1 w-48 overflow-hidden bg-amber-signal/20">
-                      <div className="h-full w-1/3 animate-[tracking-roll_1.5s_linear_infinite] bg-amber-signal" />
-                    </div>
+                  <div className="text-typewriter text-xs uppercase tracking-[0.5em] text-amber-signal/80">
+                    Carregando...
                   </div>
                 </div>
-              )}
-              {stage === "ejecting" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black">
-                  <span className="text-typewriter text-xs uppercase tracking-[0.5em] text-amber-signal/60">
-                    Ejetando...
-                  </span>
-                </div>
-              )}
-
-              {/* VHS effects overlay (only when actually playing) */}
-              {(stage === "playing") && <VhsOverlay effects={effects} />}
-
-              {/* OSD */}
-              {tape && stage === "playing" && (
-                <>
-                  <div className="absolute left-4 top-3 z-20 text-typewriter text-sm text-amber-signal drop-shadow-[0_0_6px_currentColor]">
-                    {playing ? "▶ PLAY" : "❚❚ PAUSE"}
-                  </div>
-                  <div className="absolute right-4 top-3 z-20 text-typewriter text-sm text-amber-signal drop-shadow-[0_0_6px_currentColor]">
-                    SP {formatTime(currentTime)}
-                  </div>
-                </>
               )}
             </div>
 
