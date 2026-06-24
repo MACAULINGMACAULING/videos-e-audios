@@ -130,33 +130,41 @@ function Visualizador() {
         setError(`Mídia incompatível com este dispositivo (${deviceLabel}).`);
         return;
       }
-      if (archive.kind !== "video") {
-        setError("Este visualizador ainda só reproduz vídeo. Use um aparelho compatível com áudio.");
-        return;
-      }
       preloadMediaSounds(archive.format);
       setFormat(archive.format);
+      if (archive.kind === "audio") {
+        setPendingAudio(archive);
+        setStage("preview");
+        return;
+      }
       setPendingTape(archiveToTape(archive));
       setStage("preview");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao ler a fita.");
+      setError(e instanceof Error ? e.message : "Falha ao ler a mídia.");
     }
   }
 
 
   // Insertion sequence
   function handleConfirmInsert() {
-    if (!pendingTape) return;
+    if (!pendingTape && !pendingAudio) return;
     playSound("insert");
     setStage("inserting");
     setTimeout(() => {
-      setStage("loading");
-      setTape(pendingTape);
+      if (pendingAudio) {
+        setAudioArchive(pendingAudio);
+        setPendingAudio(null);
+        setStage("playing");
+      } else if (pendingTape) {
+        setStage("loading");
+        setTape(pendingTape);
+      }
     }, 1300);
   }
 
   function handleCancelPreview() {
     setPendingTape(null);
+    setPendingAudio(null);
     setFormat(null);
     setStage("empty");
   }
