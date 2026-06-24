@@ -27,6 +27,8 @@ export interface TapeMeta {
   effects: VhsEffects;
   autoplay: boolean;
   loop: boolean;
+  /** Funções permitidas pela própria mídia. Chaves: pause/ff/rw/frame/timeline/eject. */
+  allowedControls?: Record<string, boolean>;
   createdAt: number;
   updatedAt: number;
 }
@@ -34,6 +36,8 @@ export interface TapeMeta {
 export interface Tape extends TapeMeta {
   cover: Blob;
   video: Blob;
+  /** Sons personalizados carregados a partir do arquivo. */
+  customSounds?: Record<string, { blob: Blob; mime: string }>;
 }
 
 export interface TapePackage {

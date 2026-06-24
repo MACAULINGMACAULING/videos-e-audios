@@ -67,12 +67,19 @@ async function rowToFull(r: ViewerRow): Promise<CustomViewer> {
     sounds[k as ControlAction | "insert"] = { blob: soundBlobs[i], mime: v.mime };
   });
 
+  const sceneRaw = (r.scene ?? { items: [] }) as {
+    items?: unknown[];
+    respectMediaControls?: boolean;
+  };
+  const respectMediaControls = sceneRaw.respectMediaControls ?? true;
+
   return {
     id: r.id,
     slug: r.slug,
     name: r.name,
     accepts: r.accepts as ArchiveKind[],
     controls: r.controls,
+    respectMediaControls,
     resolution: r.resolution as ViewerResolution,
     background,
     backgroundType: r.background_type,
@@ -170,7 +177,7 @@ export async function saveViewer(v: CustomViewer): Promise<{ publicId: string }>
     token_path: tokPathFinal,
     token_type: v.tokenType,
     sounds: soundsOut as never,
-    scene: v.scene as never,
+    scene: { ...v.scene, respectMediaControls: v.respectMediaControls } as never,
     is_public: true,
   });
   if (error) throw error;

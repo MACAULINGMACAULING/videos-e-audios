@@ -50,6 +50,7 @@ function ViewerCreator() {
   const [name, setName] = useState("");
   const [accepts, setAccepts] = useState<ArchiveKind[]>(["video"]);
   const [controls, setControls] = useState(defaultControls());
+  const [respectMediaControls, setRespectMediaControls] = useState(true);
   const [resolution, setResolution] = useState<ViewerResolution>("1280x720");
   const [background, setBackground] = useState<{ blob: Blob; mime: string } | null>(null);
   const [token, setToken] = useState<{ blob: Blob; mime: string } | null>(null);
@@ -68,6 +69,7 @@ function ViewerCreator() {
       setName(v.name);
       setAccepts(v.accepts);
       setControls(v.controls);
+      setRespectMediaControls(v.respectMediaControls ?? true);
       setResolution(v.resolution);
       if (v.background && v.backgroundType) setBackground({ blob: v.background, mime: v.backgroundType });
       if (v.token && v.tokenType) setToken({ blob: v.token, mime: v.tokenType });
@@ -97,6 +99,7 @@ function ViewerCreator() {
       name: name.trim() || "Visualizador sem nome",
       accepts,
       controls,
+      respectMediaControls,
       resolution,
       background: background?.blob ?? null,
       backgroundType: background?.mime ?? null,
@@ -196,6 +199,22 @@ function ViewerCreator() {
                 </Toggle>
               ))}
             </div>
+            <label className="mt-3 flex cursor-pointer items-start gap-3 border border-border bg-background/30 p-3 transition-colors hover:border-amber-signal/60">
+              <input
+                type="checkbox"
+                checked={respectMediaControls}
+                onChange={(e) => setRespectMediaControls(e.target.checked)}
+                className="mt-1 accent-amber-signal"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="text-typewriter text-[11px] uppercase tracking-[0.25em] text-foreground">
+                  Se adequar à mídia
+                </span>
+                <p className="mt-1 text-typewriter text-[10px] leading-snug text-muted-foreground">
+                  Quando ativo, o visualizador respeita as funções permitidas pelo próprio arquivo. Uma fita danificada continua sem pausar mesmo numa TV completa.
+                </p>
+              </div>
+            </label>
           </Block>
 
           <Block title="Resolução Máxima">

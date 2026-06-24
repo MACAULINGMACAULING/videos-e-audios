@@ -2,11 +2,23 @@ import type { VhsEffects } from "@/lib/tape-types";
 
 export type ArchiveKind = "video" | "audio" | "image" | "container";
 
-export type ViewerId = "tv-vhs" | "dvd-player" | "monitor-crt" | "computador";
+export type ViewerId =
+  | "tv-vhs"
+  | "dvd-player"
+  | "monitor-crt"
+  | "computador"
+  | "radio"
+  | "cassette-recorder"
+  | "cd-player"
+  | "vinyl-player";
 
 export type MediaFormat =
   | { kind: "vhs" }
   | { kind: "dvd" }
+  | { kind: "cassette" }
+  | { kind: "cd" }
+  | { kind: "vinyl" }
+  | { kind: "digital" }
   | { kind: "other"; label: string };
 
 export const RESOLUTIONS = [
@@ -29,6 +41,11 @@ export interface BaseArchive {
   compatibleViewers: ViewerId[];
   autoplay: boolean;
   loop: boolean;
+  /** Funções permitidas pela mídia. Quando o visualizador respeita restrições da mídia,
+   *  apenas controles habilitados aqui ficam disponíveis. Chaves: pause/ff/rw/frame/timeline/eject. */
+  allowedControls?: Record<string, boolean>;
+  /** Sons personalizados da mídia. Prioridade máxima na cadeia de áudio. */
+  customSounds?: Record<string, { blob: Blob; mime: string }>;
   createdAt: number;
   updatedAt: number;
 }
@@ -46,8 +63,21 @@ export interface VideoArchive extends BaseArchive {
   payload: VideoPayload;
 }
 
+export interface AudioPayload {
+  audio: Blob;
+  audioType: string;
+  /** Imagem opcional exibida no visualizador enquanto o áudio toca. */
+  playbackImage?: Blob;
+  playbackImageType?: string;
+}
+
+export interface AudioArchive extends BaseArchive {
+  kind: "audio";
+  payload: AudioPayload;
+}
+
 /** União expandirá conforme novos tipos forem implementados. */
-export type ArchiveFile = VideoArchive;
+export type ArchiveFile = VideoArchive | AudioArchive;
 
 export interface ArchiveMeta {
   id: string;
@@ -59,6 +89,7 @@ export interface ArchiveMeta {
   compatibleViewers: ViewerId[];
   autoplay: boolean;
   loop: boolean;
+  allowedControls?: Record<string, boolean>;
   createdAt: number;
   updatedAt: number;
   /** Resumo do payload para listagens. */
@@ -66,9 +97,15 @@ export interface ArchiveMeta {
 }
 
 export function formatLabel(f: MediaFormat): string {
-  if (f.kind === "vhs") return "VHS";
-  if (f.kind === "dvd") return "DVD";
-  return f.label || "Formato Próprio";
+  switch (f.kind) {
+    case "vhs": return "VHS";
+    case "dvd": return "DVD";
+    case "cassette": return "Cassete";
+    case "cd": return "CD";
+    case "vinyl": return "Vinil";
+    case "digital": return "Digital";
+    case "other": return f.label || "Formato Próprio";
+  }
 }
 
 export function newArchiveId() {

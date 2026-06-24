@@ -27,7 +27,8 @@ export const ARCHIVE_TYPES: ArchiveTypeDef[] = [
     code: "02",
     label: "Áudio",
     description: "Gravações, escutas, transmissões de rádio.",
-    status: "wip",
+    status: "ready",
+    creatorRoute: "/criador/audio",
     glyph: "♪",
   },
   {

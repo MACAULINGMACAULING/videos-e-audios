@@ -44,6 +44,9 @@ export interface CustomViewer {
   name: string;
   accepts: ArchiveKind[];
   controls: Record<ControlAction, boolean>;
+  /** Se true, o visualizador respeita também as funções permitidas pela mídia inserida.
+   *  Quando true: controle disponível = visualizador AND mídia. Default true. */
+  respectMediaControls: boolean;
   resolution: ViewerResolution;
   background: Blob | null;
   backgroundType: string | null;
@@ -83,4 +86,30 @@ export function slugify(name: string) {
 
 export function defaultControls(): Record<ControlAction, boolean> {
   return { pause: true, ff: true, rw: true, frame: false, timeline: false, eject: true };
+}
+
+/** Defaults para a configuração "Funções Permitidas" da mídia — tudo liberado. */
+export function defaultAllowedMediaControls(): Record<ControlAction, boolean> {
+  return { pause: true, ff: true, rw: true, frame: true, timeline: true, eject: true };
+}
+
+/**
+ * Resolve quais controles ficam disponíveis ao jogador combinando os controles
+ * que o visualizador oferece com as funções permitidas pela própria mídia.
+ *
+ * Regra: a mídia sempre tem prioridade. Se uma função estiver bloqueada nela,
+ * permanece bloqueada mesmo que o visualizador suporte.
+ */
+export function resolveAvailableControls(
+  viewerControls: Record<ControlAction, boolean>,
+  mediaAllowed: Record<string, boolean> | undefined,
+  respect: boolean,
+): Record<ControlAction, boolean> {
+  if (!respect || !mediaAllowed) return { ...viewerControls };
+  const out = { ...viewerControls };
+  for (const k of CONTROL_ACTIONS) {
+    const mediaOk = mediaAllowed[k] ?? true;
+    out[k] = viewerControls[k] && mediaOk;
+  }
+  return out;
 }

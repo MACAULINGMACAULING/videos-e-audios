@@ -4,10 +4,15 @@ import { VhsOverlay } from "@/components/vhs-overlay";
 import { readArchiveFile } from "@/lib/archive/export";
 import type { ArchiveFile, MediaFormat, VideoArchive } from "@/lib/archive/types";
 import type { Tape } from "@/lib/tape-types";
-import { playClick, playEject, playInsert, startRewind } from "@/lib/vhs-audio";
-import { playMediaSound, preloadMediaSounds } from "@/lib/archive/media-sounds";
+import { startRewind } from "@/lib/vhs-audio";
+import { preloadMediaSounds } from "@/lib/archive/media-sounds";
+import { playChainedSound, type SoundChainSources } from "@/lib/archive/sound-chain";
 import { getPublicViewerByPublicId } from "@/lib/archive/viewer-db";
-import type { ControlAction, CustomViewer } from "@/lib/archive/viewer-types";
+import {
+  resolveAvailableControls,
+  type CustomViewer,
+} from "@/lib/archive/viewer-types";
+import { InspectionOverlay } from "@/components/inspection-overlay";
 
 export const Route = createFileRoute("/v/$publicId")({
   ssr: false,
@@ -30,6 +35,8 @@ function archiveToTape(a: VideoArchive): Tape {
     cover: a.token, coverType: a.tokenType,
     video: a.payload.video, videoType: a.payload.videoType,
     effects: a.payload.effects, autoplay: a.autoplay, loop: a.loop,
+    customSounds: a.customSounds,
+    allowedControls: a.allowedControls,
     createdAt: a.createdAt, updatedAt: a.updatedAt,
   };
 }
@@ -46,20 +53,11 @@ function PublicPlayer() {
   }, [publicId]);
 
   const acceptsKinds = customViewer?.accepts ?? ["video"];
-  const controlsCfg = customViewer?.controls ?? {
+  const baseControls = customViewer?.controls ?? {
     pause: true, ff: true, rw: true, frame: true, timeline: true, eject: true,
   };
+  const respectMediaControls = customViewer?.respectMediaControls ?? true;
   const deviceLabel = customViewer?.name ?? "Visualizador";
-
-  const playViewerSound = useCallback((key: ControlAction | "insert"): boolean => {
-    const vs = customViewer?.sounds[key];
-    if (!vs) return false;
-    const url = URL.createObjectURL(vs.blob);
-    const audio = new Audio(url);
-    audio.onended = () => URL.revokeObjectURL(url);
-    void audio.play().catch(() => URL.revokeObjectURL(url));
-    return true;
-  }, [customViewer]);
 
   const [stage, setStage] = useState<Stage>("empty");
   const [pendingTape, setPendingTape] = useState<Tape | null>(null);
@@ -67,21 +65,22 @@ function PublicPlayer() {
   const [format, setFormat] = useState<MediaFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const mediaClick = useCallback((key?: ControlAction) => {
-    if (key && playViewerSound(key)) return;
-    if (playMediaSound(format, "button")) return;
-    playClick();
-  }, [format, playViewerSound]);
-  const mediaInsert = useCallback((f: MediaFormat | null) => {
-    if (playViewerSound("insert")) return;
-    if (playMediaSound(f, "insert")) return;
-    playInsert();
-  }, [playViewerSound]);
-  const mediaEject = useCallback(() => {
-    if (playViewerSound("eject")) return;
-    if (playMediaSound(format, "eject")) return;
-    playEject();
-  }, [format, playViewerSound]);
+  const controlsCfg = useMemo(
+    () => resolveAvailableControls(baseControls, tape?.allowedControls, respectMediaControls),
+    [baseControls, tape, respectMediaControls],
+  );
+
+  // Cadeia de áudio: MÍDIA > VISUALIZADOR > FORMATO > SISTEMA.
+  const soundSources = useMemo<SoundChainSources>(() => ({
+    mediaCustom: (tape ?? pendingTape)?.customSounds,
+    viewerCustom: customViewer?.sounds,
+    mediaFormat: format,
+  }), [tape, pendingTape, customViewer, format]);
+
+  const playSound = useCallback(
+    (key: Parameters<typeof playChainedSound>[0]) => playChainedSound(key, soundSources),
+    [soundSources],
+  );
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -91,13 +90,11 @@ function PublicPlayer() {
   const [duration, setDuration] = useState(0);
   const scrubRef = useRef<{ raf: number; stop: () => void } | null>(null);
 
-  const coverUrl = useMemo(() => (pendingTape?.cover ? URL.createObjectURL(pendingTape.cover) : null), [pendingTape]);
   const videoUrl = useMemo(() => (tape?.video ? URL.createObjectURL(tape.video) : null), [tape]);
   const backgroundUrl = useMemo(
     () => (customViewer?.background ? URL.createObjectURL(customViewer.background) : null),
     [customViewer],
   );
-  useEffect(() => () => { if (coverUrl) URL.revokeObjectURL(coverUrl); }, [coverUrl]);
   useEffect(() => () => { if (videoUrl) URL.revokeObjectURL(videoUrl); }, [videoUrl]);
   useEffect(() => () => { if (backgroundUrl) URL.revokeObjectURL(backgroundUrl); }, [backgroundUrl]);
 
@@ -107,6 +104,10 @@ function PublicPlayer() {
       const archive: ArchiveFile = await readArchiveFile(file);
       if (!acceptsKinds.includes(archive.kind)) {
         setError(`Mídia incompatível com este dispositivo (${deviceLabel}).`);
+        return;
+      }
+      if (archive.kind !== "video") {
+        setError("Este visualizador ainda só reproduz vídeo. Use um aparelho compatível com áudio.");
         return;
       }
       preloadMediaSounds(archive.format);
@@ -120,7 +121,7 @@ function PublicPlayer() {
 
   function handleConfirmInsert() {
     if (!pendingTape) return;
-    mediaInsert(format);
+    playSound("insert");
     setStage("inserting");
     setTimeout(() => { setStage("loading"); setTape(pendingTape); }, 1300);
   }
@@ -130,18 +131,25 @@ function PublicPlayer() {
     if (!videoRef.current) return;
     setDuration(videoRef.current.duration || 0);
     setStage("playing");
-    if (tape?.autoplay) void videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
+    if (tape?.autoplay) void videoRef.current.play().then(() => {
+      setPlaying(true);
+      playSound("play");
+    }).catch(() => {});
   }
 
-  const handlePlay = useCallback(() => { mediaClick(); videoRef.current?.play(); setPlaying(true); }, [mediaClick]);
-  const handlePause = useCallback(() => { mediaClick("pause"); videoRef.current?.pause(); setPlaying(false); }, [mediaClick]);
+  const handlePlay = useCallback(() => {
+    playSound("play"); videoRef.current?.play(); setPlaying(true);
+  }, [playSound]);
+  const handlePause = useCallback(() => {
+    playSound("pause"); videoRef.current?.pause(); setPlaying(false);
+  }, [playSound]);
   const handleStop = useCallback(() => {
-    mediaClick();
+    playSound("stop");
     if (videoRef.current) { videoRef.current.pause(); videoRef.current.currentTime = 0; setCurrentTime(0); }
     setPlaying(false);
-  }, [mediaClick]);
+  }, [playSound]);
   const handleEject = useCallback(() => {
-    mediaEject();
+    playSound("eject");
     setStage("ejecting");
     if (videoRef.current) videoRef.current.pause();
     setPlaying(false);
@@ -149,7 +157,7 @@ function PublicPlayer() {
       setTape(null); setPendingTape(null); setFormat(null);
       setStage("empty"); setCurrentTime(0); setDuration(0);
     }, 1100);
-  }, [mediaEject]);
+  }, [playSound]);
 
   const startScrub = useCallback((dir: "rew" | "ff") => {
     if (!videoRef.current) return;
@@ -176,26 +184,29 @@ function PublicPlayer() {
   }, []);
   const nudgeFrame = useCallback((dir: "back" | "fwd") => {
     if (!videoRef.current) return;
-    mediaClick("frame");
+    playSound("frame");
     const v = videoRef.current;
     v.pause(); setPlaying(false);
     const step = 1 / 30;
     v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + (dir === "fwd" ? step : -step)));
     setCurrentTime(v.currentTime);
-  }, [mediaClick]);
+  }, [playSound]);
 
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
     const onTime = () => setCurrentTime(v.currentTime);
-    const onEnded = () => setPlaying(false);
+    const onEnded = () => {
+      setPlaying(false);
+      playSound("stop");
+    };
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("ended", onEnded);
     return () => {
       v.removeEventListener("timeupdate", onTime);
       v.removeEventListener("ended", onEnded);
     };
-  }, [tape]);
+  }, [tape, playSound]);
 
   const effects = tape?.effects ?? pendingTape?.effects ?? {
     noise: 0, scanlines: 0, tracking: 0, ghosting: 0, chromatic: 0, signalLoss: 0, tapeDamage: 0,
@@ -349,36 +360,14 @@ function PublicPlayer() {
         )}
       </div>
 
-      {stage === "preview" && pendingTape && coverUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl border border-amber-signal/30 bg-[oklch(0.13_0.012_60)] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.9)]">
-            <p className="text-typewriter text-[10px] uppercase tracking-[0.5em] text-amber-signal/80">Mídia Detectada</p>
-            <div className="mt-6 flex flex-col gap-6 md:flex-row">
-              <div className="relative aspect-[1.6/1] w-56 shrink-0 border-2 border-[oklch(0.22_0.02_60)] bg-[oklch(0.1_0.01_60)] shadow-[0_20px_40px_rgba(0,0,0,0.7)]">
-                <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
-                <div className="absolute inset-x-3 top-3 bg-paper/95 px-2 py-1 text-typewriter text-[10px] uppercase tracking-wider text-ink shadow">
-                  {pendingTape.name}
-                </div>
-              </div>
-              <div className="flex-1">
-                <h2 className="text-serif-noir text-4xl font-light leading-tight text-foreground">{pendingTape.name}</h2>
-                {pendingTape.description && (
-                  <p className="mt-4 text-typewriter text-sm leading-relaxed text-muted-foreground">{pendingTape.description}</p>
-                )}
-              </div>
-            </div>
-            <div className="mt-8 flex justify-end gap-3 border-t border-dashed border-border pt-6">
-              <button onClick={handleCancelPreview}
-                className="text-typewriter border border-border px-6 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground">
-                Cancelar
-              </button>
-              <button onClick={handleConfirmInsert}
-                className="text-typewriter border border-amber-signal bg-amber-signal px-6 py-2 text-xs uppercase tracking-[0.3em] text-primary-foreground hover:opacity-90">
-                Inserir
-              </button>
-            </div>
-          </div>
-        </div>
+      {stage === "preview" && pendingTape && (
+        <InspectionOverlay
+          tokenBlob={pendingTape.cover}
+          name={pendingTape.name}
+          description={pendingTape.description}
+          onConfirm={handleConfirmInsert}
+          onCancel={handleCancelPreview}
+        />
       )}
     </div>
   );

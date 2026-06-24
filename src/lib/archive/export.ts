@@ -1,4 +1,4 @@
-import type { ArchiveFile, VideoArchive } from "./types";
+import type { ArchiveFile, AudioArchive, VideoArchive } from "./types";
 
 async function blobToBase64(blob: Blob): Promise<string> {
   const buf = await blob.arrayBuffer();
@@ -18,26 +18,67 @@ function base64ToBlob(b64: string, type: string): Blob {
   return new Blob([bytes], { type });
 }
 
+type VideoPayloadPkg = {
+  kind: "video";
+  videoBase64: string;
+  videoType: string;
+  resolution: string;
+  effects: VideoArchive["payload"]["effects"];
+};
+
+type AudioPayloadPkg = {
+  kind: "audio";
+  audioBase64: string;
+  audioType: string;
+  playbackImageBase64?: string;
+  playbackImageType?: string;
+};
+
 interface ArchivePackage {
   format: "archive-weaver/1";
-  meta: Omit<ArchiveFile, "token" | "payload">;
+  meta: Omit<ArchiveFile, "token" | "payload" | "customSounds">;
   tokenBase64: string;
-  payload: { kind: "video"; videoBase64: string; videoType: string; resolution: string; effects: VideoArchive["payload"]["effects"] };
+  customSounds?: Record<string, { base64: string; mime: string }>;
+  payload: VideoPayloadPkg | AudioPayloadPkg;
 }
 
 export async function exportArchive(a: ArchiveFile): Promise<Blob> {
-  const { token, payload, ...meta } = a;
+  const { token, payload, customSounds, ...meta } = a;
+  const csOut: Record<string, { base64: string; mime: string }> = {};
+  if (customSounds) {
+    for (const [k, s] of Object.entries(customSounds)) {
+      if (!s) continue;
+      csOut[k] = { base64: await blobToBase64(s.blob), mime: s.mime };
+    }
+  }
+
+  let payloadPkg: VideoPayloadPkg | AudioPayloadPkg;
+  if (a.kind === "video") {
+    payloadPkg = {
+      kind: "video",
+      videoBase64: await blobToBase64(a.payload.video),
+      videoType: a.payload.videoType,
+      resolution: a.payload.resolution,
+      effects: a.payload.effects,
+    };
+  } else {
+    payloadPkg = {
+      kind: "audio",
+      audioBase64: await blobToBase64(a.payload.audio),
+      audioType: a.payload.audioType,
+      playbackImageBase64: a.payload.playbackImage
+        ? await blobToBase64(a.payload.playbackImage)
+        : undefined,
+      playbackImageType: a.payload.playbackImageType,
+    };
+  }
+
   const pkg: ArchivePackage = {
     format: "archive-weaver/1",
     meta,
     tokenBase64: await blobToBase64(token),
-    payload: {
-      kind: "video",
-      videoBase64: await blobToBase64(payload.video),
-      videoType: payload.videoType,
-      resolution: payload.resolution,
-      effects: payload.effects,
-    },
+    customSounds: Object.keys(csOut).length ? csOut : undefined,
+    payload: payloadPkg,
   };
   return new Blob([JSON.stringify(pkg)], { type: "application/x-archive-weaver" });
 }
@@ -67,18 +108,47 @@ export async function readArchiveFile(file: File): Promise<ArchiveFile> {
   if (pkg.format !== "archive-weaver/1") {
     throw new Error("Formato de arquivo desconhecido.");
   }
-  if (pkg.payload.kind !== "video") {
-    throw new Error("Este visualizador só aceita arquivos de vídeo.");
+
+  const customSounds: Record<string, { blob: Blob; mime: string }> = {};
+  if (pkg.customSounds) {
+    for (const [k, s] of Object.entries(pkg.customSounds)) {
+      customSounds[k] = { blob: base64ToBlob(s.base64, s.mime), mime: s.mime };
+    }
   }
-  return {
-    ...pkg.meta,
-    kind: "video",
-    token: base64ToBlob(pkg.tokenBase64, pkg.meta.tokenType),
-    payload: {
-      video: base64ToBlob(pkg.payload.videoBase64, pkg.payload.videoType),
-      videoType: pkg.payload.videoType,
-      resolution: pkg.payload.resolution as VideoArchive["payload"]["resolution"],
-      effects: pkg.payload.effects,
-    },
-  } as ArchiveFile;
+  const cs = Object.keys(customSounds).length ? customSounds : undefined;
+  const token = base64ToBlob(pkg.tokenBase64, pkg.meta.tokenType);
+
+  if (pkg.payload.kind === "video") {
+    const v: VideoArchive = {
+      ...(pkg.meta as Omit<VideoArchive, "token" | "payload" | "customSounds">),
+      kind: "video",
+      token,
+      customSounds: cs,
+      payload: {
+        video: base64ToBlob(pkg.payload.videoBase64, pkg.payload.videoType),
+        videoType: pkg.payload.videoType,
+        resolution: pkg.payload.resolution as VideoArchive["payload"]["resolution"],
+        effects: pkg.payload.effects,
+      },
+    };
+    return v;
+  }
+  if (pkg.payload.kind === "audio") {
+    const a: AudioArchive = {
+      ...(pkg.meta as Omit<AudioArchive, "token" | "payload" | "customSounds">),
+      kind: "audio",
+      token,
+      customSounds: cs,
+      payload: {
+        audio: base64ToBlob(pkg.payload.audioBase64, pkg.payload.audioType),
+        audioType: pkg.payload.audioType,
+        playbackImage: pkg.payload.playbackImageBase64
+          ? base64ToBlob(pkg.payload.playbackImageBase64, pkg.payload.playbackImageType ?? "image/png")
+          : undefined,
+        playbackImageType: pkg.payload.playbackImageType,
+      },
+    };
+    return a;
+  }
+  throw new Error("Tipo de payload desconhecido.");
 }
