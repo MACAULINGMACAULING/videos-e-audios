@@ -47,12 +47,18 @@ function readSceneMeta(r: ViewerRow): {
   deviceType: DeviceType;
   hasScreen: boolean;
   audioDisplayMode: AudioDisplayMode;
+  showWaveform: boolean;
+  allowSubtitles: boolean;
+  useTokenAsDisplay: boolean;
 } {
   const s = (r.scene ?? {}) as {
     respectMediaControls?: boolean;
     deviceType?: DeviceType;
     hasScreen?: boolean;
     audioDisplayMode?: AudioDisplayMode;
+    showWaveform?: boolean;
+    allowSubtitles?: boolean;
+    useTokenAsDisplay?: boolean;
   };
   const accepts = (r.accepts ?? []) as ArchiveKind[];
   const inferredType: DeviceType =
@@ -67,6 +73,9 @@ function readSceneMeta(r: ViewerRow): {
     deviceType,
     hasScreen: s.hasScreen ?? deviceType !== "audio",
     audioDisplayMode: s.audioDisplayMode ?? "token",
+    showWaveform: s.showWaveform ?? false,
+    allowSubtitles: s.allowSubtitles ?? false,
+    useTokenAsDisplay: s.useTokenAsDisplay ?? false,
   };
 }
 
