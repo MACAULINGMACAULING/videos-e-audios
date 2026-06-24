@@ -690,6 +690,25 @@ function Toggle({
   );
 }
 
+function QolCheck({
+  label, hint, checked, onChange,
+}: { label: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 border border-border bg-background/30 p-3 transition-colors hover:border-amber-signal/60">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-1 accent-amber-signal"
+      />
+      <div className="min-w-0 flex-1">
+        <span className="text-typewriter text-[11px] uppercase tracking-[0.25em] text-foreground">{label}</span>
+        <p className="mt-1 text-typewriter text-[10px] leading-snug text-muted-foreground">{hint}</p>
+      </div>
+    </label>
+  );
+}
+
 function FilePicker({
   accept, value, onChange, label,
 }: {
