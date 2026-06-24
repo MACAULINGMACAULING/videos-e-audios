@@ -475,6 +475,8 @@ function Visualizador() {
             <span>{formatTime(duration)}</span>
           </div>
         )}
+        </>
+        )}
 
         {/* Insert tape button */}
         <div className="mt-10">
@@ -510,6 +512,15 @@ function Visualizador() {
           tokenBlob={pendingTape.cover}
           name={pendingTape.name}
           description={pendingTape.description}
+          onConfirm={handleConfirmInsert}
+          onCancel={handleCancelPreview}
+        />
+      )}
+      {stage === "preview" && pendingAudio && (
+        <InspectionOverlay
+          tokenBlob={pendingAudio.token}
+          name={pendingAudio.name}
+          description={pendingAudio.description}
           onConfirm={handleConfirmInsert}
           onCancel={handleCancelPreview}
         />
