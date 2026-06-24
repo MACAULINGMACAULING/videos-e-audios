@@ -53,9 +53,7 @@ function PublicPlayer() {
   }, [publicId]);
 
   const acceptsKinds = customViewer?.accepts ?? ["video"];
-  const baseControls = customViewer?.controls ?? {
-    pause: true, ff: true, rw: true, frame: true, timeline: true, eject: true,
-  };
+  const baseControls = customViewer?.controls ?? defaultAllowedMediaControls();
   const respectMediaControls = customViewer?.respectMediaControls ?? true;
   const deviceLabel = customViewer?.name ?? "Visualizador";
 
