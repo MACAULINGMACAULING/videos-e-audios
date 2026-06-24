@@ -273,6 +273,19 @@ function CriadorAudio() {
               </button>
             )}
           </Section>
+
+          <Section code="C-07" label="Legenda / Transcrição (opcional)">
+            <p className="mb-2 text-typewriter text-[10px] leading-snug tracking-widest text-muted-foreground">
+              Texto completo ou trechos. Exibido se o visualizador permitir legendas.
+            </p>
+            <textarea
+              value={transcript}
+              onChange={(e) => setTranscript(e.target.value)}
+              placeholder="— Você ouviu isso?&#10;— Foi só o vento.&#10;— Não. Era uma voz."
+              rows={6}
+              className="w-full resize-y border border-border bg-card/40 p-3 text-typewriter text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-amber-signal focus:outline-none"
+            />
+          </Section>
         </div>
 
         {/* ============ CENTER ============ */}
