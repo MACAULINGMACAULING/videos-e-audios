@@ -9,6 +9,7 @@ import { preloadMediaSounds } from "@/lib/archive/media-sounds";
 import { playChainedSound, type SoundChainSources } from "@/lib/archive/sound-chain";
 import { getPublicViewerByPublicId } from "@/lib/archive/viewer-db";
 import {
+  defaultAllowedMediaControls,
   resolveAvailableControls,
   type CustomViewer,
 } from "@/lib/archive/viewer-types";

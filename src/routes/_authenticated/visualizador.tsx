@@ -10,6 +10,7 @@ import { preloadMediaSounds } from "@/lib/archive/media-sounds";
 import { playChainedSound, type SoundChainSources } from "@/lib/archive/sound-chain";
 import { getViewer as getCustomViewer } from "@/lib/archive/viewer-db";
 import {
+  defaultAllowedMediaControls,
   resolveAvailableControls,
   type ControlAction,
   type CustomViewer,
@@ -18,9 +19,7 @@ import { InspectionOverlay } from "@/components/inspection-overlay";
 
 /** Dispositivo padrão quando nenhum visualizador customizado é carregado. */
 const DEFAULT_VIEWER_ID: ViewerId = "tv-vhs";
-const DEFAULT_CONTROLS: Record<ControlAction, boolean> = {
-  pause: true, ff: true, rw: true, frame: true, timeline: true, eject: true,
-};
+const DEFAULT_CONTROLS = defaultAllowedMediaControls();
 
 function archiveToTape(a: VideoArchive): Tape {
   return {
