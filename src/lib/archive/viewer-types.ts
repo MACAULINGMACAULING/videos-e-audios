@@ -88,24 +88,24 @@ export interface CustomViewer {
   id: string;
   slug: string;
   name: string;
-  /** Perfil do dispositivo (vídeo, áudio, misto). Default: "video". */
   deviceType: DeviceType;
-  /** Se o dispositivo possui uma tela de exibição visual.
-   *  Rádios, walkmans e gravadores definem isso como false. */
   hasScreen: boolean;
-  /** O que renderizar quando uma mídia de áudio estiver tocando. */
   audioDisplayMode: AudioDisplayMode;
+  /** QoL áudio: forma de onda animada durante a reprodução. */
+  showWaveform: boolean;
+  /** QoL áudio: permitir abrir transcrição/legenda da mídia. */
+  allowSubtitles: boolean;
+  /** QoL áudio: usar o token do próprio visualizador como imagem central
+   *  do painel principal (rádios, walkmans, vitrolas). */
+  useTokenAsDisplay: boolean;
   accepts: ArchiveKind[];
   controls: Record<ControlAction, boolean>;
-  /** Se true, o visualizador respeita também as funções permitidas pela mídia inserida.
-   *  Quando true: controle disponível = visualizador AND mídia. Default true. */
   respectMediaControls: boolean;
   resolution: ViewerResolution;
   background: Blob | null;
   backgroundType: string | null;
   token: Blob | null;
   tokenType: string | null;
-  /** Sons por ação — sobrescrevem o conjunto do formato da mídia. */
   sounds: Partial<Record<ControlAction | "insert", { blob: Blob; mime: string }>>;
   scene: { items: ViewerSceneItem[] };
   createdAt: number;
