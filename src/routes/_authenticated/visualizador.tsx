@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VhsOverlay } from "@/components/vhs-overlay";
 import { readArchiveFile } from "@/lib/archive/export";
 import { canPlay } from "@/lib/archive/viewers";
-import type { ArchiveFile, MediaFormat, VideoArchive, ViewerId } from "@/lib/archive/types";
+import type { ArchiveFile, AudioArchive, MediaFormat, VideoArchive, ViewerId } from "@/lib/archive/types";
 import type { Tape } from "@/lib/tape-types";
 import { startRewind } from "@/lib/vhs-audio";
 import { preloadMediaSounds } from "@/lib/archive/media-sounds";
@@ -16,6 +16,7 @@ import {
   type CustomViewer,
 } from "@/lib/archive/viewer-types";
 import { InspectionOverlay } from "@/components/inspection-overlay";
+import { AudioPlayer } from "@/components/audio-player";
 
 /** Dispositivo padrão quando nenhum visualizador customizado é carregado. */
 const DEFAULT_VIEWER_ID: ViewerId = "tv-vhs";
@@ -72,7 +73,9 @@ function Visualizador() {
 
   const [stage, setStage] = useState<Stage>("empty");
   const [pendingTape, setPendingTape] = useState<Tape | null>(null);
+  const [pendingAudio, setPendingAudio] = useState<AudioArchive | null>(null);
   const [tape, setTape] = useState<Tape | null>(null);
+  const [audioArchive, setAudioArchive] = useState<AudioArchive | null>(null);
   const [format, setFormat] = useState<MediaFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,10 +87,10 @@ function Visualizador() {
 
   // Cadeia de prioridade de áudio: MÍDIA > VISUALIZADOR > FORMATO > SISTEMA.
   const soundSources = useMemo<SoundChainSources>(() => ({
-    mediaCustom: (tape ?? pendingTape)?.customSounds,
+    mediaCustom: (tape ?? pendingTape)?.customSounds ?? audioArchive?.customSounds ?? pendingAudio?.customSounds,
     viewerCustom: customViewer?.sounds,
     mediaFormat: format,
-  }), [tape, pendingTape, customViewer, format]);
+  }), [tape, pendingTape, audioArchive, pendingAudio, customViewer, format]);
 
   const playSound = useCallback(
     (key: Parameters<typeof playChainedSound>[0]) => playChainedSound(key, soundSources),
