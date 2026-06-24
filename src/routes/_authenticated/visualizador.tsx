@@ -211,11 +211,21 @@ function Visualizador() {
     setTimeout(() => {
       setTape(null);
       setPendingTape(null);
+      setAudioArchive(null);
+      setPendingAudio(null);
       setFormat(null);
       setStage("empty");
       setCurrentTime(0);
       setDuration(0);
     }, 1100);
+  }, [playSound]);
+
+  const handleAudioEject = useCallback(() => {
+    playSound("eject");
+    setAudioArchive(null);
+    setPendingAudio(null);
+    setFormat(null);
+    setStage("empty");
   }, [playSound]);
 
 
