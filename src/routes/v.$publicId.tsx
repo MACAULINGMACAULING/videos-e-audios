@@ -226,9 +226,8 @@ function PublicPlayer() {
     };
   }, [tape, playSound]);
 
-  const effects = tape?.effects ?? pendingTape?.effects ?? {
-    noise: 0, scanlines: 0, tracking: 0, ghosting: 0, chromatic: 0, signalLoss: 0, tapeDamage: 0,
-  };
+
+
 
   if (notFound) {
     return (
