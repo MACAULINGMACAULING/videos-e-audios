@@ -14,7 +14,7 @@ export function NoirShell({ title, subtitle, children, back = true }: Props) {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border/60 bg-[oklch(0.1_0.012_60)]/80 backdrop-blur">
+      <header className="border-b border-border/60 bg-[#0F0F0F]/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="size-2 animate-pulse rounded-full bg-amber-signal shadow-[0_0_8px_var(--amber-signal)]" />

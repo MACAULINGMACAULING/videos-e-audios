@@ -323,11 +323,11 @@ function ViewerCreator() {
             {backgroundUrl ? (
               <img src={backgroundUrl} alt="cena" className="absolute inset-0 h-full w-full object-cover opacity-90" />
             ) : (
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,oklch(0.16_0.018_60)_0%,oklch(0.06_0.005_60)_75%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#1C1C1C_0%,#050505_75%)]" />
             )}
 
             {/* Device chassis */}
-            <div className="absolute inset-x-[10%] bottom-[8%] top-[14%] rounded-[24px] border-2 border-[oklch(0.25_0.02_60)] bg-[oklch(0.14_0.012_60)]/90 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.04)]">
+            <div className="absolute inset-x-[10%] bottom-[8%] top-[14%] rounded-[24px] border-2 border-[#333333] bg-[#171717]/90 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.04)]">
               {hasScreen ? (
                 <DevicePreviewWithScreen
                   resolution={resolution}
@@ -585,7 +585,7 @@ function NoScreenDevicePreview({
 }) {
   const enabled = AUDIO_CONTROL_ACTIONS.filter((c) => controls[c]);
   return (
-    <div className="flex h-full w-full flex-col gap-2 rounded-[12px] border border-amber-signal/20 bg-[oklch(0.10_0.01_60)] p-3">
+    <div className="flex h-full w-full flex-col gap-2 rounded-[12px] border border-amber-signal/20 bg-[#0F0F0F] p-3">
       <div className="flex-1 border border-amber-signal/20 bg-black/60 p-3">
         <AudioModePreview mode={audioMode} tokenUrl={tokenUrl} name={name} />
       </div>

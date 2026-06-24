@@ -294,7 +294,7 @@ function CriadorAudio() {
             Pré-visualização
           </p>
 
-          <div className="relative aspect-video overflow-hidden border-4 border-[oklch(0.22_0.02_60)] bg-black shadow-[inset_0_0_80px_rgba(0,0,0,0.9),0_30px_60px_rgba(0,0,0,0.5)]">
+          <div className="relative aspect-video overflow-hidden border-4 border-[#2A2A2A] bg-black shadow-[inset_0_0_80px_rgba(0,0,0,0.9),0_30px_60px_rgba(0,0,0,0.5)]">
             {playbackImageUrl && (
               <img
                 src={playbackImageUrl}
@@ -325,7 +325,7 @@ function CriadorAudio() {
               Token — Aparência Física
             </p>
             <div className="mt-3 flex justify-center">
-              <div className="relative aspect-[1.6/1] w-56 border border-border bg-[oklch(0.15_0.01_60)]">
+              <div className="relative aspect-[1.6/1] w-56 border border-border bg-[#1A1A1A]">
                 {tokenUrl ? (
                   <>
                     <img src={tokenUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70" />
