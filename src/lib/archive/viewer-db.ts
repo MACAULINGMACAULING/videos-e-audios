@@ -1,8 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  AudioDisplayMode,
   ControlAction,
   CustomViewer,
   CustomViewerMeta,
+  DeviceType,
   ViewerResolution,
 } from "./viewer-types";
 import type { ArchiveKind } from "./types";
@@ -40,11 +42,42 @@ interface ViewerRow {
   updated_at: string;
 }
 
+function readSceneMeta(r: ViewerRow): {
+  respectMediaControls: boolean;
+  deviceType: DeviceType;
+  hasScreen: boolean;
+  audioDisplayMode: AudioDisplayMode;
+} {
+  const s = (r.scene ?? {}) as {
+    respectMediaControls?: boolean;
+    deviceType?: DeviceType;
+    hasScreen?: boolean;
+    audioDisplayMode?: AudioDisplayMode;
+  };
+  const accepts = (r.accepts ?? []) as ArchiveKind[];
+  const inferredType: DeviceType =
+    accepts.length === 1 && accepts[0] === "audio"
+      ? "audio"
+      : accepts.length > 1
+        ? "mixed"
+        : "video";
+  const deviceType = s.deviceType ?? inferredType;
+  return {
+    respectMediaControls: s.respectMediaControls ?? true,
+    deviceType,
+    hasScreen: s.hasScreen ?? deviceType !== "audio",
+    audioDisplayMode: s.audioDisplayMode ?? "token",
+  };
+}
+
 function rowToMeta(r: ViewerRow): CustomViewerMeta & { publicId: string } {
+  const m = readSceneMeta(r);
   return {
     id: r.id,
     slug: r.slug,
     name: r.name,
+    deviceType: m.deviceType,
+    hasScreen: m.hasScreen,
     accepts: r.accepts as ArchiveKind[],
     controls: r.controls,
     resolution: r.resolution as ViewerResolution,
