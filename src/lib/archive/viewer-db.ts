@@ -209,7 +209,13 @@ export async function saveViewer(v: CustomViewer): Promise<{ publicId: string }>
     token_path: tokPathFinal,
     token_type: v.tokenType,
     sounds: soundsOut as never,
-    scene: { ...v.scene, respectMediaControls: v.respectMediaControls } as never,
+    scene: {
+      ...v.scene,
+      respectMediaControls: v.respectMediaControls,
+      deviceType: v.deviceType,
+      hasScreen: v.hasScreen,
+      audioDisplayMode: v.audioDisplayMode,
+    } as never,
     is_public: true,
   });
   if (error) throw error;
