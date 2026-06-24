@@ -100,19 +100,18 @@ async function rowToFull(r: ViewerRow): Promise<CustomViewer> {
     sounds[k as ControlAction | "insert"] = { blob: soundBlobs[i], mime: v.mime };
   });
 
-  const sceneRaw = (r.scene ?? { items: [] }) as {
-    items?: unknown[];
-    respectMediaControls?: boolean;
-  };
-  const respectMediaControls = sceneRaw.respectMediaControls ?? true;
+  const meta = readSceneMeta(r);
 
   return {
     id: r.id,
     slug: r.slug,
     name: r.name,
+    deviceType: meta.deviceType,
+    hasScreen: meta.hasScreen,
+    audioDisplayMode: meta.audioDisplayMode,
     accepts: r.accepts as ArchiveKind[],
     controls: r.controls,
-    respectMediaControls,
+    respectMediaControls: meta.respectMediaControls,
     resolution: r.resolution as ViewerResolution,
     background,
     backgroundType: r.background_type,
