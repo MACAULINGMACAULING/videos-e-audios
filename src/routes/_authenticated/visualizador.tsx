@@ -314,7 +314,16 @@ function Visualizador() {
       )}
 
       <div className="relative z-10 flex w-full max-w-4xl flex-col items-center">
-
+        {audioArchive ? (
+          <AudioPlayer
+            archive={audioArchive}
+            viewer={customViewer}
+            controls={controlsCfg}
+            playSound={playSound}
+            onEject={handleAudioEject}
+          />
+        ) : (
+        <>
         {/* === THE TV / MONITOR === */}
         <div className="relative w-full">
           {/* Bezel */}
