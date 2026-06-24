@@ -210,11 +210,9 @@ export function AudioPlayer({ archive, viewer, controls, playSound, onEject }: P
             displayMode={displayMode}
           />
 
-          {/* Top info bar */}
-          <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-3 py-2 text-typewriter text-[10px] uppercase tracking-[0.35em] text-amber-signal/80">
-            <span className="truncate">{archive.name}</span>
-            <span>{playing ? "▶" : "❚❚"} {formatTime(currentTime)}</span>
-          </div>
+          {/* No automatic overlays drawn over the audio display.
+              Optional waveform / subtitles are creator-controlled and rendered below. */}
+
 
           {/* Waveform overlay */}
           {showWaveform && (

@@ -1,10 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { VhsOverlay } from "@/components/vhs-overlay";
 import { readArchiveFile } from "@/lib/archive/export";
 import type { ArchiveFile, AudioArchive, MediaFormat, VideoArchive } from "@/lib/archive/types";
 import type { Tape } from "@/lib/tape-types";
-import { startRewind } from "@/lib/vhs-audio";
 import { preloadMediaSounds } from "@/lib/archive/media-sounds";
 import { playChainedSound, type SoundChainSources } from "@/lib/archive/sound-chain";
 import { getPublicViewerByPublicId } from "@/lib/archive/viewer-db";
@@ -183,7 +181,7 @@ function PublicPlayer() {
     if (!videoRef.current) return;
     const v = videoRef.current;
     v.pause(); setPlaying(false);
-    const stopAudio = startRewind(dir);
+    const stopAudio = () => {};
     let last = performance.now();
     const speed = 6;
     const tick = (now: number) => {
@@ -228,9 +226,8 @@ function PublicPlayer() {
     };
   }, [tape, playSound]);
 
-  const effects = tape?.effects ?? pendingTape?.effects ?? {
-    noise: 0, scanlines: 0, tracking: 0, ghosting: 0, chromatic: 0, signalLoss: 0, tapeDamage: 0,
-  };
+
+
 
   if (notFound) {
     return (
@@ -289,7 +286,7 @@ function PublicPlayer() {
             <div className="relative aspect-[4/3] overflow-hidden rounded-[20px] border-[10px] border-black bg-black shadow-[inset_0_0_120px_rgba(0,0,0,1)]">
               {videoUrl && (
                 <video ref={videoRef} src={videoUrl} onLoadedMetadata={handleVideoLoaded} loop={tape?.loop} playsInline
-                  className="absolute inset-0 h-full w-full object-cover animate-flicker" />
+                  className="absolute inset-0 h-full w-full object-cover" />
               )}
               {stage === "empty" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-amber-signal/70">
@@ -297,35 +294,13 @@ function PublicPlayer() {
                   <span className="text-serif-noir italic text-muted-foreground">— insira uma mídia —</span>
                 </div>
               )}
+              {/* Initial loading — technical necessity before playback */}
               {stage === "loading" && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black">
-                  <div className="text-center">
-                    <div className="text-typewriter text-xs uppercase tracking-[0.5em] text-amber-signal animate-pulse">
-                      Carregando...
-                    </div>
-                    <div className="mt-3 h-1 w-48 overflow-hidden bg-amber-signal/20">
-                      <div className="h-full w-1/3 animate-[tracking-roll_1.5s_linear_infinite] bg-amber-signal" />
-                    </div>
+                  <div className="text-typewriter text-xs uppercase tracking-[0.5em] text-amber-signal/80">
+                    Carregando...
                   </div>
                 </div>
-              )}
-              {stage === "ejecting" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black">
-                  <span className="text-typewriter text-xs uppercase tracking-[0.5em] text-amber-signal/60">
-                    Ejetando...
-                  </span>
-                </div>
-              )}
-              {stage === "playing" && <VhsOverlay effects={effects} />}
-              {tape && stage === "playing" && (
-                <>
-                  <div className="absolute left-4 top-3 z-20 text-typewriter text-sm text-amber-signal drop-shadow-[0_0_6px_currentColor]">
-                    {playing ? "▶ PLAY" : "❚❚ PAUSE"}
-                  </div>
-                  <div className="absolute right-4 top-3 z-20 text-typewriter text-sm text-amber-signal drop-shadow-[0_0_6px_currentColor]">
-                    SP {formatTime(currentTime)}
-                  </div>
-                </>
               )}
             </div>
             <div className="relative mt-6">
