@@ -274,6 +274,16 @@ function PublicPlayer() {
       </div>
 
       <div className="relative z-10 flex w-full max-w-4xl flex-col items-center">
+        {audioArchive ? (
+          <AudioPlayer
+            archive={audioArchive}
+            viewer={customViewer}
+            controls={controlsCfg}
+            playSound={playSound}
+            onEject={handleAudioEject}
+          />
+        ) : (
+        <>
         <div className="relative w-full">
           <div className="relative rounded-[40px] border-2 border-[oklch(0.25_0.02_60)] bg-[oklch(0.14_0.012_60)] p-8 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8),inset_0_2px_0_rgba(255,255,255,0.04)]">
             <div className="relative aspect-[4/3] overflow-hidden rounded-[20px] border-[10px] border-black bg-black shadow-[inset_0_0_120px_rgba(0,0,0,1)]">
@@ -360,6 +370,8 @@ function PublicPlayer() {
             <span>{formatTime(duration)}</span>
           </div>
         )}
+        </>
+        )}
 
         <div className="mt-10">
           <button onClick={() => fileInputRef.current?.click()}
@@ -385,6 +397,15 @@ function PublicPlayer() {
           tokenBlob={pendingTape.cover}
           name={pendingTape.name}
           description={pendingTape.description}
+          onConfirm={handleConfirmInsert}
+          onCancel={handleCancelPreview}
+        />
+      )}
+      {stage === "preview" && pendingAudio && (
+        <InspectionOverlay
+          tokenBlob={pendingAudio.token}
+          name={pendingAudio.name}
+          description={pendingAudio.description}
           onConfirm={handleConfirmInsert}
           onCancel={handleCancelPreview}
         />
