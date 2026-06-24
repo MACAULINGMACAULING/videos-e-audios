@@ -66,6 +66,9 @@ function ViewerCreator() {
   const [deviceType, setDeviceType] = useState<DeviceType>("video");
   const [hasScreen, setHasScreen] = useState(true);
   const [audioDisplayMode, setAudioDisplayMode] = useState<AudioDisplayMode>("token");
+  const [showWaveform, setShowWaveform] = useState(false);
+  const [allowSubtitles, setAllowSubtitles] = useState(false);
+  const [useTokenAsDisplay, setUseTokenAsDisplay] = useState(false);
   const [accepts, setAccepts] = useState<ArchiveKind[]>(["video"]);
   const [controls, setControls] = useState(defaultControlsFor("video"));
   const [respectMediaControls, setRespectMediaControls] = useState(true);
@@ -89,6 +92,9 @@ function ViewerCreator() {
       setDeviceType(v.deviceType);
       setHasScreen(v.hasScreen);
       setAudioDisplayMode(v.audioDisplayMode);
+      setShowWaveform(v.showWaveform ?? false);
+      setAllowSubtitles(v.allowSubtitles ?? false);
+      setUseTokenAsDisplay(v.useTokenAsDisplay ?? false);
       setAccepts(v.accepts);
       setControls({ ...emptyControls(), ...v.controls });
       setRespectMediaControls(v.respectMediaControls ?? true);
