@@ -284,9 +284,8 @@ function Visualizador() {
     };
   }, [tape, playSound]);
 
-  const effects = tape?.effects ?? pendingTape?.effects ?? {
-    noise: 0, scanlines: 0, tracking: 0, ghosting: 0, chromatic: 0, signalLoss: 0, tapeDamage: 0,
-  };
+
+
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[oklch(0.08_0.008_60)] px-4 py-10">
