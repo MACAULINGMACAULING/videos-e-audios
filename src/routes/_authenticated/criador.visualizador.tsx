@@ -66,6 +66,9 @@ function ViewerCreator() {
   const [deviceType, setDeviceType] = useState<DeviceType>("video");
   const [hasScreen, setHasScreen] = useState(true);
   const [audioDisplayMode, setAudioDisplayMode] = useState<AudioDisplayMode>("token");
+  const [showWaveform, setShowWaveform] = useState(false);
+  const [allowSubtitles, setAllowSubtitles] = useState(false);
+  const [useTokenAsDisplay, setUseTokenAsDisplay] = useState(false);
   const [accepts, setAccepts] = useState<ArchiveKind[]>(["video"]);
   const [controls, setControls] = useState(defaultControlsFor("video"));
   const [respectMediaControls, setRespectMediaControls] = useState(true);
@@ -89,6 +92,9 @@ function ViewerCreator() {
       setDeviceType(v.deviceType);
       setHasScreen(v.hasScreen);
       setAudioDisplayMode(v.audioDisplayMode);
+      setShowWaveform(v.showWaveform ?? false);
+      setAllowSubtitles(v.allowSubtitles ?? false);
+      setUseTokenAsDisplay(v.useTokenAsDisplay ?? false);
       setAccepts(v.accepts);
       setControls({ ...emptyControls(), ...v.controls });
       setRespectMediaControls(v.respectMediaControls ?? true);
@@ -146,6 +152,9 @@ function ViewerCreator() {
       deviceType,
       hasScreen,
       audioDisplayMode,
+      showWaveform,
+      allowSubtitles,
+      useTokenAsDisplay,
       accepts,
       controls,
       respectMediaControls,
@@ -452,6 +461,27 @@ function ViewerCreator() {
                   </Toggle>
                 ))}
               </div>
+
+              <div className="mt-4 space-y-2">
+                <QolCheck
+                  label="Exibir onda sonora"
+                  hint="Visualização animada estilo Audacity/Audition durante a reprodução."
+                  checked={showWaveform}
+                  onChange={setShowWaveform}
+                />
+                <QolCheck
+                  label="Permitir legendas"
+                  hint="Jogador pode abrir/fechar a transcrição da mídia (se houver)."
+                  checked={allowSubtitles}
+                  onChange={setAllowSubtitles}
+                />
+                <QolCheck
+                  label="Usar token do visualizador como exibição"
+                  hint="A imagem do próprio aparelho (rádio, walkman, vitrola) ocupa o painel central."
+                  checked={useTokenAsDisplay}
+                  onChange={setUseTokenAsDisplay}
+                />
+              </div>
             </Block>
           )}
 
@@ -657,6 +687,25 @@ function Toggle({
     >
       {active ? "✔ " : ""}{children}
     </button>
+  );
+}
+
+function QolCheck({
+  label, hint, checked, onChange,
+}: { label: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 border border-border bg-background/30 p-3 transition-colors hover:border-amber-signal/60">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-1 accent-amber-signal"
+      />
+      <div className="min-w-0 flex-1">
+        <span className="text-typewriter text-[11px] uppercase tracking-[0.25em] text-foreground">{label}</span>
+        <p className="mt-1 text-typewriter text-[10px] leading-snug text-muted-foreground">{hint}</p>
+      </div>
+    </label>
   );
 }
 

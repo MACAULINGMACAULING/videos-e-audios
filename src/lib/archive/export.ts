@@ -32,6 +32,7 @@ type AudioPayloadPkg = {
   audioType: string;
   playbackImageBase64?: string;
   playbackImageType?: string;
+  transcript?: string;
 };
 
 interface ArchivePackage {
@@ -70,6 +71,7 @@ export async function exportArchive(a: ArchiveFile): Promise<Blob> {
         ? await blobToBase64(a.payload.playbackImage)
         : undefined,
       playbackImageType: a.payload.playbackImageType,
+      transcript: a.payload.transcript,
     };
   }
 
@@ -146,6 +148,7 @@ export async function readArchiveFile(file: File): Promise<ArchiveFile> {
           ? base64ToBlob(pkg.payload.playbackImageBase64, pkg.payload.playbackImageType ?? "image/png")
           : undefined,
         playbackImageType: pkg.payload.playbackImageType,
+        transcript: pkg.payload.transcript,
       },
     };
     return a;

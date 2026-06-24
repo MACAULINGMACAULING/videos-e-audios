@@ -47,12 +47,18 @@ function readSceneMeta(r: ViewerRow): {
   deviceType: DeviceType;
   hasScreen: boolean;
   audioDisplayMode: AudioDisplayMode;
+  showWaveform: boolean;
+  allowSubtitles: boolean;
+  useTokenAsDisplay: boolean;
 } {
   const s = (r.scene ?? {}) as {
     respectMediaControls?: boolean;
     deviceType?: DeviceType;
     hasScreen?: boolean;
     audioDisplayMode?: AudioDisplayMode;
+    showWaveform?: boolean;
+    allowSubtitles?: boolean;
+    useTokenAsDisplay?: boolean;
   };
   const accepts = (r.accepts ?? []) as ArchiveKind[];
   const inferredType: DeviceType =
@@ -67,6 +73,9 @@ function readSceneMeta(r: ViewerRow): {
     deviceType,
     hasScreen: s.hasScreen ?? deviceType !== "audio",
     audioDisplayMode: s.audioDisplayMode ?? "token",
+    showWaveform: s.showWaveform ?? false,
+    allowSubtitles: s.allowSubtitles ?? false,
+    useTokenAsDisplay: s.useTokenAsDisplay ?? false,
   };
 }
 
@@ -109,6 +118,9 @@ async function rowToFull(r: ViewerRow): Promise<CustomViewer> {
     deviceType: meta.deviceType,
     hasScreen: meta.hasScreen,
     audioDisplayMode: meta.audioDisplayMode,
+    showWaveform: meta.showWaveform,
+    allowSubtitles: meta.allowSubtitles,
+    useTokenAsDisplay: meta.useTokenAsDisplay,
     accepts: r.accepts as ArchiveKind[],
     controls: r.controls,
     respectMediaControls: meta.respectMediaControls,
@@ -215,6 +227,9 @@ export async function saveViewer(v: CustomViewer): Promise<{ publicId: string }>
       deviceType: v.deviceType,
       hasScreen: v.hasScreen,
       audioDisplayMode: v.audioDisplayMode,
+      showWaveform: v.showWaveform,
+      allowSubtitles: v.allowSubtitles,
+      useTokenAsDisplay: v.useTokenAsDisplay,
     } as never,
     is_public: true,
   });

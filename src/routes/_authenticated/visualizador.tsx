@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VhsOverlay } from "@/components/vhs-overlay";
 import { readArchiveFile } from "@/lib/archive/export";
 import { canPlay } from "@/lib/archive/viewers";
-import type { ArchiveFile, MediaFormat, VideoArchive, ViewerId } from "@/lib/archive/types";
+import type { ArchiveFile, AudioArchive, MediaFormat, VideoArchive, ViewerId } from "@/lib/archive/types";
 import type { Tape } from "@/lib/tape-types";
 import { startRewind } from "@/lib/vhs-audio";
 import { preloadMediaSounds } from "@/lib/archive/media-sounds";
@@ -16,6 +16,7 @@ import {
   type CustomViewer,
 } from "@/lib/archive/viewer-types";
 import { InspectionOverlay } from "@/components/inspection-overlay";
+import { AudioPlayer } from "@/components/audio-player";
 
 /** Dispositivo padrão quando nenhum visualizador customizado é carregado. */
 const DEFAULT_VIEWER_ID: ViewerId = "tv-vhs";
@@ -72,7 +73,9 @@ function Visualizador() {
 
   const [stage, setStage] = useState<Stage>("empty");
   const [pendingTape, setPendingTape] = useState<Tape | null>(null);
+  const [pendingAudio, setPendingAudio] = useState<AudioArchive | null>(null);
   const [tape, setTape] = useState<Tape | null>(null);
+  const [audioArchive, setAudioArchive] = useState<AudioArchive | null>(null);
   const [format, setFormat] = useState<MediaFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,10 +87,10 @@ function Visualizador() {
 
   // Cadeia de prioridade de áudio: MÍDIA > VISUALIZADOR > FORMATO > SISTEMA.
   const soundSources = useMemo<SoundChainSources>(() => ({
-    mediaCustom: (tape ?? pendingTape)?.customSounds,
+    mediaCustom: (tape ?? pendingTape)?.customSounds ?? audioArchive?.customSounds ?? pendingAudio?.customSounds,
     viewerCustom: customViewer?.sounds,
     mediaFormat: format,
-  }), [tape, pendingTape, customViewer, format]);
+  }), [tape, pendingTape, audioArchive, pendingAudio, customViewer, format]);
 
   const playSound = useCallback(
     (key: Parameters<typeof playChainedSound>[0]) => playChainedSound(key, soundSources),
@@ -127,33 +130,41 @@ function Visualizador() {
         setError(`Mídia incompatível com este dispositivo (${deviceLabel}).`);
         return;
       }
-      if (archive.kind !== "video") {
-        setError("Este visualizador ainda só reproduz vídeo. Use um aparelho compatível com áudio.");
-        return;
-      }
       preloadMediaSounds(archive.format);
       setFormat(archive.format);
+      if (archive.kind === "audio") {
+        setPendingAudio(archive);
+        setStage("preview");
+        return;
+      }
       setPendingTape(archiveToTape(archive));
       setStage("preview");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao ler a fita.");
+      setError(e instanceof Error ? e.message : "Falha ao ler a mídia.");
     }
   }
 
 
   // Insertion sequence
   function handleConfirmInsert() {
-    if (!pendingTape) return;
+    if (!pendingTape && !pendingAudio) return;
     playSound("insert");
     setStage("inserting");
     setTimeout(() => {
-      setStage("loading");
-      setTape(pendingTape);
+      if (pendingAudio) {
+        setAudioArchive(pendingAudio);
+        setPendingAudio(null);
+        setStage("playing");
+      } else if (pendingTape) {
+        setStage("loading");
+        setTape(pendingTape);
+      }
     }, 1300);
   }
 
   function handleCancelPreview() {
     setPendingTape(null);
+    setPendingAudio(null);
     setFormat(null);
     setStage("empty");
   }
@@ -200,11 +211,21 @@ function Visualizador() {
     setTimeout(() => {
       setTape(null);
       setPendingTape(null);
+      setAudioArchive(null);
+      setPendingAudio(null);
       setFormat(null);
       setStage("empty");
       setCurrentTime(0);
       setDuration(0);
     }, 1100);
+  }, [playSound]);
+
+  const handleAudioEject = useCallback(() => {
+    playSound("eject");
+    setAudioArchive(null);
+    setPendingAudio(null);
+    setFormat(null);
+    setStage("empty");
   }, [playSound]);
 
 
@@ -293,7 +314,16 @@ function Visualizador() {
       )}
 
       <div className="relative z-10 flex w-full max-w-4xl flex-col items-center">
-
+        {audioArchive ? (
+          <AudioPlayer
+            archive={audioArchive}
+            viewer={customViewer}
+            controls={controlsCfg}
+            playSound={playSound}
+            onEject={handleAudioEject}
+          />
+        ) : (
+        <>
         {/* === THE TV / MONITOR === */}
         <div className="relative w-full">
           {/* Bezel */}
@@ -445,6 +475,8 @@ function Visualizador() {
             <span>{formatTime(duration)}</span>
           </div>
         )}
+        </>
+        )}
 
         {/* Insert tape button */}
         <div className="mt-10">
@@ -480,6 +512,15 @@ function Visualizador() {
           tokenBlob={pendingTape.cover}
           name={pendingTape.name}
           description={pendingTape.description}
+          onConfirm={handleConfirmInsert}
+          onCancel={handleCancelPreview}
+        />
+      )}
+      {stage === "preview" && pendingAudio && (
+        <InspectionOverlay
+          tokenBlob={pendingAudio.token}
+          name={pendingAudio.name}
+          description={pendingAudio.description}
           onConfirm={handleConfirmInsert}
           onCancel={handleCancelPreview}
         />

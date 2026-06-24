@@ -19,6 +19,9 @@ export const SOUND_KEYS = [
   "frame",
   "play",
   "stop",
+  "volUp",
+  "volDown",
+  "timeline",
 ] as const;
 export type SoundKey = (typeof SOUND_KEYS)[number];
 
@@ -31,6 +34,9 @@ export const SOUND_LABELS: Record<SoundKey, string> = {
   frame: "Frame por Frame",
   play: "Reprodução Iniciada",
   stop: "Reprodução Encerrada",
+  volUp: "Volume +",
+  volDown: "Volume −",
+  timeline: "Buscar (Timeline)",
 };
 
 type BlobSound = { blob: Blob; mime: string };

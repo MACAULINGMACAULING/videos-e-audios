@@ -69,6 +69,8 @@ export interface AudioPayload {
   /** Imagem opcional exibida no visualizador enquanto o áudio toca. */
   playbackImage?: Blob;
   playbackImageType?: string;
+  /** Transcrição/legenda textual da gravação (opcional). */
+  transcript?: string;
 }
 
 export interface AudioArchive extends BaseArchive {
