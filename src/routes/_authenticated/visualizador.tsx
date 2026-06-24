@@ -5,16 +5,21 @@ import { readArchiveFile } from "@/lib/archive/export";
 import { canPlay } from "@/lib/archive/viewers";
 import type { ArchiveFile, MediaFormat, VideoArchive, ViewerId } from "@/lib/archive/types";
 import type { Tape } from "@/lib/tape-types";
-import { playClick, playEject, playInsert, startRewind } from "@/lib/vhs-audio";
-import { playMediaSound, preloadMediaSounds } from "@/lib/archive/media-sounds";
+import { startRewind } from "@/lib/vhs-audio";
+import { preloadMediaSounds } from "@/lib/archive/media-sounds";
+import { playChainedSound, type SoundChainSources } from "@/lib/archive/sound-chain";
 import { getViewer as getCustomViewer } from "@/lib/archive/viewer-db";
-import type { ControlAction, CustomViewer } from "@/lib/archive/viewer-types";
+import {
+  defaultAllowedMediaControls,
+  resolveAvailableControls,
+  type ControlAction,
+  type CustomViewer,
+} from "@/lib/archive/viewer-types";
+import { InspectionOverlay } from "@/components/inspection-overlay";
 
 /** Dispositivo padrão quando nenhum visualizador customizado é carregado. */
 const DEFAULT_VIEWER_ID: ViewerId = "tv-vhs";
-const DEFAULT_CONTROLS: Record<ControlAction, boolean> = {
-  pause: true, ff: true, rw: true, frame: true, timeline: true, eject: true,
-};
+const DEFAULT_CONTROLS = defaultAllowedMediaControls();
 
 function archiveToTape(a: VideoArchive): Tape {
   return {
@@ -28,6 +33,8 @@ function archiveToTape(a: VideoArchive): Tape {
     effects: a.payload.effects,
     autoplay: a.autoplay,
     loop: a.loop,
+    allowedControls: a.allowedControls,
+    customSounds: a.customSounds,
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
   };
@@ -58,7 +65,8 @@ function Visualizador() {
     void getCustomViewer(viewerParam).then((v) => setCustomViewer(v ?? null));
   }, [viewerParam]);
 
-  const controlsCfg = customViewer?.controls ?? DEFAULT_CONTROLS;
+  const baseControls = customViewer?.controls ?? DEFAULT_CONTROLS;
+  const respectMediaControls = customViewer?.respectMediaControls ?? true;
   const acceptsKinds = customViewer?.accepts ?? ["video"];
   const deviceLabel = customViewer?.name ?? "TV VHS";
 
@@ -68,34 +76,23 @@ function Visualizador() {
   const [format, setFormat] = useState<MediaFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Som customizado do visualizador (prioridade máxima), fallback para o som
-  // do formato físico, fallback para o sintetizado genérico.
-  const playViewerSound = useCallback((key: ControlAction | "insert"): boolean => {
-    const vs = customViewer?.sounds[key];
-    if (!vs) return false;
-    const url = URL.createObjectURL(vs.blob);
-    const audio = new Audio(url);
-    const cleanup = () => URL.revokeObjectURL(url);
-    audio.onended = cleanup;
-    void audio.play().catch(cleanup);
-    return true;
-  }, [customViewer]);
+  // Controles finais = visualizador ⨯ funções permitidas pela mídia (quando aplicável).
+  const controlsCfg = useMemo(
+    () => resolveAvailableControls(baseControls, tape?.allowedControls, respectMediaControls),
+    [baseControls, tape, respectMediaControls],
+  );
 
-  const mediaClick = useCallback((key?: ControlAction) => {
-    if (key && playViewerSound(key)) return;
-    if (playMediaSound(format, "button")) return;
-    playClick();
-  }, [format, playViewerSound]);
-  const mediaInsert = useCallback((f: MediaFormat | null) => {
-    if (playViewerSound("insert")) return;
-    if (playMediaSound(f, "insert")) return;
-    playInsert();
-  }, [playViewerSound]);
-  const mediaEject = useCallback(() => {
-    if (playViewerSound("eject")) return;
-    if (playMediaSound(format, "eject")) return;
-    playEject();
-  }, [format, playViewerSound]);
+  // Cadeia de prioridade de áudio: MÍDIA > VISUALIZADOR > FORMATO > SISTEMA.
+  const soundSources = useMemo<SoundChainSources>(() => ({
+    mediaCustom: (tape ?? pendingTape)?.customSounds,
+    viewerCustom: customViewer?.sounds,
+    mediaFormat: format,
+  }), [tape, pendingTape, customViewer, format]);
+
+  const playSound = useCallback(
+    (key: Parameters<typeof playChainedSound>[0]) => playChainedSound(key, soundSources),
+    [soundSources],
+  );
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -130,6 +127,10 @@ function Visualizador() {
         setError(`Mídia incompatível com este dispositivo (${deviceLabel}).`);
         return;
       }
+      if (archive.kind !== "video") {
+        setError("Este visualizador ainda só reproduz vídeo. Use um aparelho compatível com áudio.");
+        return;
+      }
       preloadMediaSounds(archive.format);
       setFormat(archive.format);
       setPendingTape(archiveToTape(archive));
@@ -143,7 +144,7 @@ function Visualizador() {
   // Insertion sequence
   function handleConfirmInsert() {
     if (!pendingTape) return;
-    mediaInsert(format);
+    playSound("insert");
     setStage("inserting");
     setTimeout(() => {
       setStage("loading");
@@ -163,33 +164,36 @@ function Visualizador() {
     setDuration(videoRef.current.duration || 0);
     setStage("playing");
     if (tape?.autoplay) {
-      void videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
+      void videoRef.current.play().then(() => {
+        setPlaying(true);
+        playSound("play");
+      }).catch(() => {});
     }
   }
 
   // Controls
   const handlePlay = useCallback(() => {
-    mediaClick();
+    playSound("play");
     videoRef.current?.play();
     setPlaying(true);
-  }, [mediaClick]);
+  }, [playSound]);
   const handlePause = useCallback(() => {
-    mediaClick("pause");
+    playSound("pause");
     videoRef.current?.pause();
     setPlaying(false);
-  }, [mediaClick]);
+  }, [playSound]);
   const handleStop = useCallback(() => {
-    mediaClick();
+    playSound("stop");
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
       setCurrentTime(0);
     }
     setPlaying(false);
-  }, [mediaClick]);
+  }, [playSound]);
 
   const handleEject = useCallback(() => {
-    mediaEject();
+    playSound("eject");
     setStage("ejecting");
     if (videoRef.current) videoRef.current.pause();
     setPlaying(false);
@@ -201,7 +205,7 @@ function Visualizador() {
       setCurrentTime(0);
       setDuration(0);
     }, 1100);
-  }, [mediaEject]);
+  }, [playSound]);
 
 
   // Continuous scrubbing while button held
@@ -235,28 +239,31 @@ function Visualizador() {
   // Frame inspection (when paused)
   const nudgeFrame = useCallback((dir: "back" | "fwd") => {
     if (!videoRef.current) return;
-    mediaClick("frame");
+    playSound("frame");
     const v = videoRef.current;
     v.pause();
     setPlaying(false);
     const step = 1 / 30; // ~one frame at 30fps
     v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + (dir === "fwd" ? step : -step)));
     setCurrentTime(v.currentTime);
-  }, [mediaClick]);
+  }, [playSound]);
 
   // Time progress
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
     const onTime = () => setCurrentTime(v.currentTime);
-    const onEnded = () => setPlaying(false);
+    const onEnded = () => {
+      setPlaying(false);
+      playSound("stop");
+    };
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("ended", onEnded);
     return () => {
       v.removeEventListener("timeupdate", onTime);
       v.removeEventListener("ended", onEnded);
     };
-  }, [tape]);
+  }, [tape, playSound]);
 
   const effects = tape?.effects ?? pendingTape?.effects ?? {
     noise: 0, scanlines: 0, tracking: 0, ghosting: 0, chromatic: 0, signalLoss: 0, tapeDamage: 0,
@@ -467,42 +474,15 @@ function Visualizador() {
         )}
       </div>
 
-      {/* === TAPE PREVIEW MODAL === */}
-      {stage === "preview" && pendingTape && coverUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl border border-amber-signal/30 bg-[oklch(0.13_0.012_60)] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.9)]">
-            <p className="text-typewriter text-[10px] uppercase tracking-[0.5em] text-amber-signal/80">
-              Fita Detectada
-            </p>
-            <div className="mt-6 flex flex-col gap-6 md:flex-row">
-              <TapeObject coverUrl={coverUrl} name={pendingTape.name} />
-              <div className="flex-1">
-                <h2 className="text-serif-noir text-4xl font-light leading-tight text-foreground">
-                  {pendingTape.name}
-                </h2>
-                {pendingTape.description && (
-                  <p className="mt-4 text-typewriter text-sm leading-relaxed text-muted-foreground">
-                    {pendingTape.description}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="mt-8 flex justify-end gap-3 border-t border-dashed border-border pt-6">
-              <button
-                onClick={handleCancelPreview}
-                className="text-typewriter border border-border px-6 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmInsert}
-                className="text-typewriter border border-amber-signal bg-amber-signal px-6 py-2 text-xs uppercase tracking-[0.3em] text-primary-foreground hover:opacity-90"
-              >
-                Inserir
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* === TELA DE INSPEÇÃO === */}
+      {stage === "preview" && pendingTape && (
+        <InspectionOverlay
+          tokenBlob={pendingTape.cover}
+          name={pendingTape.name}
+          description={pendingTape.description}
+          onConfirm={handleConfirmInsert}
+          onCancel={handleCancelPreview}
+        />
       )}
     </div>
   );

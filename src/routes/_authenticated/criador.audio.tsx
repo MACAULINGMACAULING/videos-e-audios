@@ -1,14 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NoirShell } from "@/components/noir-shell";
-import { DEFAULT_EFFECTS } from "@/lib/tape-types";
 import {
-  RESOLUTIONS,
   formatLabel,
   newArchiveId,
+  type AudioArchive,
   type MediaFormat,
-  type Resolution,
-  type VideoArchive,
   type ViewerId,
 } from "@/lib/archive/types";
 import { VIEWERS, suggestedViewersForFormat } from "@/lib/archive/viewers";
@@ -20,40 +17,41 @@ import {
   defaultAllowedMediaControls,
   type ControlAction,
 } from "@/lib/archive/viewer-types";
-import { SOUND_KEYS, SOUND_LABELS, type SoundKey } from "@/lib/archive/sound-chain";
+import { SOUND_KEYS, SOUND_LABELS } from "@/lib/archive/sound-chain";
 
-export const Route = createFileRoute("/_authenticated/criador/video")({
+export const Route = createFileRoute("/_authenticated/criador/audio")({
   validateSearch: (s: Record<string, unknown>) => ({
     id: typeof s.id === "string" ? s.id : undefined,
   }),
   head: () => ({
     meta: [
-      { title: "Criador de Vídeo — Archive WEAVER" },
-      { name: "description", content: "Compose uma evidência em vídeo: formato, token, compatibilidade." },
-      { property: "og:title", content: "Criador de Vídeo — Archive WEAVER" },
-      { property: "og:description", content: "Compose uma evidência em vídeo: formato, token, compatibilidade." },
+      { title: "Criador de Áudio — Archive WEAVER" },
+      { name: "description", content: "Compose uma evidência sonora: formato, token, compatibilidade." },
+      { property: "og:title", content: "Criador de Áudio — Archive WEAVER" },
+      { property: "og:description", content: "Compose uma evidência sonora: formato, token, compatibilidade." },
     ],
   }),
-  component: CriadorVideo,
+  component: CriadorAudio,
 });
 
-type FormatChoice = "vhs" | "dvd" | "other";
+type FormatChoice = "cassette" | "cd" | "vinyl" | "digital" | "other";
 
-function CriadorVideo() {
+function CriadorAudio() {
   const { id } = Route.useSearch();
   const navigate = useNavigate();
 
   const [archiveId, setArchiveId] = useState(() => id ?? newArchiveId());
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [formatChoice, setFormatChoice] = useState<FormatChoice>("vhs");
+  const [formatChoice, setFormatChoice] = useState<FormatChoice>("cassette");
   const [otherFormat, setOtherFormat] = useState("");
   const [token, setToken] = useState<Blob | null>(null);
   const [tokenType, setTokenType] = useState("image/png");
-  const [video, setVideo] = useState<Blob | null>(null);
-  const [videoType, setVideoType] = useState("video/mp4");
-  const [resolution, setResolution] = useState<Resolution>("1280x720");
-  const [compatibleViewers, setCompatibleViewers] = useState<ViewerId[]>(["tv-vhs"]);
+  const [audio, setAudio] = useState<Blob | null>(null);
+  const [audioType, setAudioType] = useState("audio/mpeg");
+  const [playbackImage, setPlaybackImage] = useState<Blob | null>(null);
+  const [playbackImageType, setPlaybackImageType] = useState("image/png");
+  const [compatibleViewers, setCompatibleViewers] = useState<ViewerId[]>(["cassette-recorder"]);
   const [autoplay, setAutoplay] = useState(true);
   const [loop, setLoop] = useState(false);
   const [allowedControls, setAllowedControls] = useState<Record<ControlAction, boolean>>(
@@ -65,16 +63,15 @@ function CriadorVideo() {
   const createdAtRef = useRef<number>(Date.now());
   const userTouchedViewersRef = useRef(false);
 
-  // Load existing archive
   useEffect(() => {
     if (!id) return;
     void getArchive(id).then((a) => {
-      if (!a || a.kind !== "video") return;
+      if (!a || a.kind !== "audio") return;
       setArchiveId(a.id);
       setName(a.name);
       setDescription(a.description);
       const fk = a.format.kind;
-      if (fk === "vhs" || fk === "dvd") {
+      if (fk === "cassette" || fk === "cd" || fk === "vinyl" || fk === "digital") {
         setFormatChoice(fk);
         setOtherFormat("");
       } else {
@@ -83,9 +80,12 @@ function CriadorVideo() {
       }
       setToken(a.token);
       setTokenType(a.tokenType);
-      setVideo(a.payload.video);
-      setVideoType(a.payload.videoType);
-      setResolution(a.payload.resolution);
+      setAudio(a.payload.audio);
+      setAudioType(a.payload.audioType);
+      if (a.payload.playbackImage) {
+        setPlaybackImage(a.payload.playbackImage);
+        setPlaybackImageType(a.payload.playbackImageType ?? "image/png");
+      }
       setCompatibleViewers(a.compatibleViewers);
       setAutoplay(a.autoplay);
       setLoop(a.loop);
@@ -99,29 +99,34 @@ function CriadorVideo() {
   }, [id]);
 
   const format: MediaFormat = useMemo(() => {
-    if (formatChoice === "vhs") return { kind: "vhs" };
-    if (formatChoice === "dvd") return { kind: "dvd" };
-    return { kind: "other", label: otherFormat.trim() || "Formato Próprio" };
+    if (formatChoice === "other") {
+      return { kind: "other", label: otherFormat.trim() || "Formato Próprio" };
+    }
+    return { kind: formatChoice };
   }, [formatChoice, otherFormat]);
 
-  // Auto-suggest compatible viewers when format changes (unless user customized)
   useEffect(() => {
     if (userTouchedViewersRef.current) return;
-    setCompatibleViewers(suggestedViewersForFormat(format, "video"));
+    setCompatibleViewers(suggestedViewersForFormat(format, "audio"));
   }, [format]);
 
   const tokenUrl = useMemo(() => (token ? URL.createObjectURL(token) : null), [token]);
-  const videoUrl = useMemo(() => (video ? URL.createObjectURL(video) : null), [video]);
+  const audioUrl = useMemo(() => (audio ? URL.createObjectURL(audio) : null), [audio]);
+  const playbackImageUrl = useMemo(
+    () => (playbackImage ? URL.createObjectURL(playbackImage) : null),
+    [playbackImage],
+  );
   useEffect(() => () => { if (tokenUrl) URL.revokeObjectURL(tokenUrl); }, [tokenUrl]);
-  useEffect(() => () => { if (videoUrl) URL.revokeObjectURL(videoUrl); }, [videoUrl]);
+  useEffect(() => () => { if (audioUrl) URL.revokeObjectURL(audioUrl); }, [audioUrl]);
+  useEffect(() => () => { if (playbackImageUrl) URL.revokeObjectURL(playbackImageUrl); }, [playbackImageUrl]);
 
-  const canSave = !!token && !!video && name.trim().length > 0 && compatibleViewers.length > 0;
+  const canSave = !!token && !!audio && name.trim().length > 0 && compatibleViewers.length > 0;
 
-  function build(): VideoArchive | null {
-    if (!token || !video) return null;
+  function build(): AudioArchive | null {
+    if (!token || !audio) return null;
     return {
       id: archiveId,
-      kind: "video",
+      kind: "audio",
       name: name.trim() || "Sem título",
       description: description.trim(),
       token,
@@ -135,10 +140,10 @@ function CriadorVideo() {
       createdAt: createdAtRef.current,
       updatedAt: Date.now(),
       payload: {
-        video,
-        videoType,
-        resolution,
-        effects: DEFAULT_EFFECTS,
+        audio,
+        audioType,
+        playbackImage: playbackImage ?? undefined,
+        playbackImageType: playbackImage ? playbackImageType : undefined,
       },
     };
   }
@@ -168,27 +173,33 @@ function CriadorVideo() {
     );
   }
 
-  const otherPlaceholders = ["Disquete de Vídeo", "Fita Experimental", "Formato Próprio"];
+  const formatChoices: { value: FormatChoice; label: string }[] = [
+    { value: "cassette", label: "Cassete" },
+    { value: "cd", label: "CD" },
+    { value: "vinyl", label: "Vinil" },
+    { value: "digital", label: "Digital" },
+    { value: "other", label: "Outro" },
+  ];
 
   return (
-    <NoirShell title="Criador de Vídeo" subtitle="Forje a evidência audiovisual.">
+    <NoirShell title="Criador de Áudio" subtitle="Forje a evidência sonora.">
       <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr_1fr]">
-        {/* ============ LEFT: configuration ============ */}
+        {/* ============ LEFT ============ */}
         <div className="space-y-6">
           <Section code="C-01" label="Formato">
-            <div className="flex gap-2">
-              {(["vhs", "dvd", "other"] as FormatChoice[]).map((c) => (
+            <div className="grid grid-cols-3 gap-2">
+              {formatChoices.map((c) => (
                 <button
-                  key={c}
+                  key={c.value}
                   type="button"
-                  onClick={() => setFormatChoice(c)}
-                  className={`text-typewriter flex-1 border px-3 py-2 text-[11px] uppercase tracking-[0.3em] transition-colors ${
-                    formatChoice === c
+                  onClick={() => setFormatChoice(c.value)}
+                  className={`text-typewriter border px-2 py-2 text-[10px] uppercase tracking-[0.25em] transition-colors ${
+                    formatChoice === c.value
                       ? "border-amber-signal bg-amber-signal text-primary-foreground"
                       : "border-border text-muted-foreground hover:border-amber-signal hover:text-amber-signal"
                   }`}
                 >
-                  {c === "vhs" ? "VHS" : c === "dvd" ? "DVD" : "Outro"}
+                  {c.label}
                 </button>
               ))}
             </div>
@@ -196,17 +207,17 @@ function CriadorVideo() {
               <input
                 value={otherFormat}
                 onChange={(e) => setOtherFormat(e.target.value)}
-                placeholder={otherPlaceholders[Math.floor(Date.now() / 5000) % 3]}
+                placeholder="Mensagem de Voz, Ligação Interceptada..."
                 className="mt-3 w-full border border-border bg-card/40 px-3 py-2 text-typewriter text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-amber-signal focus:outline-none"
               />
             )}
           </Section>
 
-          <Section code="C-02" label="Nome do Vídeo">
+          <Section code="C-02" label="Nome do Áudio">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Entrevista 01"
+              placeholder="Entrevista 04"
               className="w-full border-b border-border bg-transparent py-2 text-serif-noir text-2xl text-foreground placeholder:text-muted-foreground/40 focus:border-amber-signal focus:outline-none"
             />
           </Section>
@@ -215,7 +226,7 @@ function CriadorVideo() {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Resumo, contexto narrativo, metadados da investigação."
+              placeholder="Contexto, data, observações narrativas."
               rows={4}
               className="w-full resize-none border border-border bg-card/40 p-3 text-typewriter text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-amber-signal focus:outline-none"
             />
@@ -224,53 +235,70 @@ function CriadorVideo() {
           <Section code="C-04" label="Token">
             <FileSelect
               accept="image/png,image/jpeg,image/webp"
-              hint="PNG, JPG, WEBP — a aparência física do arquivo"
+              hint="Cassete, CD, disco, gravador — a aparência física"
               fileName={token ? "token carregado" : null}
               onFile={(f) => { setToken(f); setTokenType(f.type); }}
             />
           </Section>
 
-          <Section code="C-05" label="Vídeo">
+          <Section code="C-05" label="Áudio">
             <FileSelect
-              accept="video/mp4,video/webm"
-              hint="MP4, WEBM"
-              fileName={video ? "vídeo carregado" : null}
-              onFile={(f) => { setVideo(f); setVideoType(f.type); }}
+              accept="audio/mpeg,audio/wav,audio/ogg,audio/flac,audio/webm,audio/*"
+              hint="MP3, WAV, OGG, FLAC, WEBM"
+              fileName={audio ? "áudio carregado" : null}
+              onFile={(f) => { setAudio(f); setAudioType(f.type || "audio/mpeg"); }}
             />
           </Section>
 
-          <Section code="C-06" label="Resolução">
-            <select
-              value={resolution}
-              onChange={(e) => setResolution(e.target.value as Resolution)}
-              className="w-full border border-border bg-card/40 px-3 py-2 text-typewriter text-sm text-foreground focus:border-amber-signal focus:outline-none"
-            >
-              {RESOLUTIONS.map((r) => (
-                <option key={r} value={r} className="bg-background">{r}</option>
-              ))}
-            </select>
+          <Section code="C-06" label="Imagem de Reprodução (opcional)">
+            <p className="mb-2 text-typewriter text-[10px] leading-snug tracking-widest text-muted-foreground">
+              Aparece no visualizador enquanto o áudio toca. Capa, foto, forma de onda.
+            </p>
+            <FileSelect
+              accept="image/png,image/jpeg,image/webp"
+              hint="PNG, JPG, WEBP"
+              fileName={playbackImage ? "imagem carregada" : null}
+              onFile={(f) => { setPlaybackImage(f); setPlaybackImageType(f.type); }}
+            />
+            {playbackImage && (
+              <button
+                type="button"
+                onClick={() => setPlaybackImage(null)}
+                className="mt-2 text-typewriter text-[10px] uppercase tracking-widest text-muted-foreground hover:text-destructive"
+              >
+                Remover imagem
+              </button>
+            )}
           </Section>
         </div>
 
-        {/* ============ CENTER: preview ============ */}
+        {/* ============ CENTER ============ */}
         <div className="space-y-6">
           <p className="text-typewriter text-[10px] uppercase tracking-[0.4em] text-amber-signal/80">
             Pré-visualização
           </p>
 
           <div className="relative aspect-video overflow-hidden border-4 border-[oklch(0.22_0.02_60)] bg-black shadow-[inset_0_0_80px_rgba(0,0,0,0.9),0_30px_60px_rgba(0,0,0,0.5)]">
-            {videoUrl ? (
-              <video
-                src={videoUrl}
-                controls
-                preload="metadata"
-                playsInline
-                className="h-full w-full object-contain"
+            {playbackImageUrl && (
+              <img
+                src={playbackImageUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover opacity-90"
               />
-            ) : (
+            )}
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-4">
+              {audioUrl ? (
+                <audio src={audioUrl} controls className="w-full" preload="metadata" />
+              ) : (
+                <p className="text-center text-typewriter text-xs uppercase tracking-[0.5em] text-muted-foreground">
+                  Áudio
+                </p>
+              )}
+            </div>
+            {!audioUrl && !playbackImageUrl && (
               <div className="flex h-full items-center justify-center">
                 <span className="text-typewriter text-xs uppercase tracking-[0.5em] text-muted-foreground">
-                  Vídeo
+                  ♪
                 </span>
               </div>
             )}
@@ -330,7 +358,7 @@ function CriadorVideo() {
           </button>
         </div>
 
-        {/* ============ RIGHT: compatibility + playback ============ */}
+        {/* ============ RIGHT ============ */}
         <div className="space-y-6">
           <Section code="V-01" label="Visualizadores Compatíveis">
             <p className="mb-3 text-typewriter text-[10px] tracking-widest text-muted-foreground">
@@ -338,7 +366,7 @@ function CriadorVideo() {
             </p>
             <div className="space-y-2">
               {VIEWERS.map((v) => {
-                const accepted = v.accepts.includes("video");
+                const accepted = v.accepts.includes("audio");
                 const checked = compatibleViewers.includes(v.id);
                 return (
                   <label
@@ -402,7 +430,7 @@ function CriadorVideo() {
 
           <Section code="V-03" label="Funções Permitidas">
             <p className="mb-3 text-typewriter text-[10px] leading-snug tracking-widest text-muted-foreground">
-              Funções que a própria mídia autoriza. Visualizadores que respeitam restrições da mídia bloqueiam o que estiver desativado aqui — mesmo que tenham o controle.
+              Funções que a própria mídia autoriza. Visualizadores que respeitam restrições da mídia bloqueiam o que estiver desativado aqui.
             </p>
             <div className="grid grid-cols-2 gap-2">
               {CONTROL_ACTIONS.map((c) => {
@@ -430,7 +458,7 @@ function CriadorVideo() {
 
           <Section code="V-04" label="Sons Personalizados">
             <p className="mb-3 text-typewriter text-[10px] leading-snug tracking-widest text-muted-foreground">
-              Sons opcionais da própria mídia. Quando definidos, substituem o som do visualizador para aquela ação. Ideal para fitas amaldiçoadas, gravações corrompidas, evidências anômalas.
+              Sons opcionais da própria mídia. Quando definidos, substituem o som do visualizador para aquela ação.
             </p>
             <div className="space-y-2">
               {SOUND_KEYS.map((k) => (
@@ -451,12 +479,9 @@ function CriadorVideo() {
             </div>
           </Section>
 
-
-
-
           <div className="border border-dashed border-border bg-card/20 p-3 text-typewriter text-[10px] leading-relaxed text-muted-foreground">
             <span className="text-amber-signal/80">Nota: </span>
-            no Archive WEAVER, cada arquivo é um objeto narrativo. Conteúdo, aparência, compatibilidade e comportamento — todos importam.
+            cada arquivo de áudio é um objeto narrativo. Formato físico, aparência, restrições e sons compõem a evidência.
           </div>
         </div>
       </div>
@@ -520,8 +545,8 @@ function MediaSoundRow({
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     const url = URL.createObjectURL(value.blob);
     previewUrlRef.current = url;
-    const audio = new Audio(url);
-    void audio.play().catch(() => {});
+    const a = new Audio(url);
+    void a.play().catch(() => {});
   }
 
   return (

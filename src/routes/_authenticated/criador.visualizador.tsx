@@ -3,14 +3,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { NoirShell } from "@/components/noir-shell";
 import type { ArchiveKind } from "@/lib/archive/types";
 import {
-  CONTROL_ACTIONS,
+  AUDIO_CONTROL_ACTIONS,
+  AUDIO_DISPLAY_LABELS,
+  AUDIO_DISPLAY_MODES,
   CONTROL_LABELS,
+  DEVICE_TYPES,
+  DEVICE_TYPE_LABELS,
+  VIDEO_CONTROL_ACTIONS,
   VIEWER_RESOLUTIONS,
-  defaultControls,
+  defaultAcceptsFor,
+  defaultControlsFor,
+  emptyControls,
   newViewerId,
   slugify,
+  type AudioDisplayMode,
   type ControlAction,
   type CustomViewer,
+  type DeviceType,
   type ViewerResolution,
 } from "@/lib/archive/viewer-types";
 import { getViewer, getViewerPublicId, saveViewer } from "@/lib/archive/viewer-db";
@@ -28,7 +37,7 @@ export const Route = createFileRoute("/_authenticated/criador/visualizador")({
   head: () => ({
     meta: [
       { title: "Criador de Visualizador — Archive WEAVER" },
-      { name: "description", content: "Crie dispositivos personalizados que reproduzem mídias compatíveis." },
+      { name: "description", content: "Crie dispositivos de reprodução: TVs, rádios, walkmans, vitrolas." },
     ],
   }),
   component: ViewerCreator,
@@ -41,6 +50,12 @@ const KIND_OPTIONS: { kind: ArchiveKind; label: string }[] = [
   { kind: "container", label: "Arquivo (Container)" },
 ];
 
+const DEVICE_HINTS: Record<DeviceType, string> = {
+  video: "TVs, monitores, projetores. Possuem área principal de vídeo.",
+  audio: "Rádios, gravadores, walkmans, CD players, vitrolas. Sem tela — foco em controles e info da mídia.",
+  mixed: "Computadores, sistemas multimídia, dispositivos customizados. Abrem qualquer formato.",
+};
+
 type SoundKey = ControlAction | "insert";
 
 function ViewerCreator() {
@@ -48,8 +63,12 @@ function ViewerCreator() {
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
+  const [deviceType, setDeviceType] = useState<DeviceType>("video");
+  const [hasScreen, setHasScreen] = useState(true);
+  const [audioDisplayMode, setAudioDisplayMode] = useState<AudioDisplayMode>("token");
   const [accepts, setAccepts] = useState<ArchiveKind[]>(["video"]);
-  const [controls, setControls] = useState(defaultControls());
+  const [controls, setControls] = useState(defaultControlsFor("video"));
+  const [respectMediaControls, setRespectMediaControls] = useState(true);
   const [resolution, setResolution] = useState<ViewerResolution>("1280x720");
   const [background, setBackground] = useState<{ blob: Blob; mime: string } | null>(null);
   const [token, setToken] = useState<{ blob: Blob; mime: string } | null>(null);
@@ -58,6 +77,7 @@ function ViewerCreator() {
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [publicId, setPublicId] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const userTouchedRef = useRef({ accepts: false, controls: false, screen: false });
 
   // Load existing
   useEffect(() => {
@@ -66,15 +86,28 @@ function ViewerCreator() {
       if (!v) return;
       setLoadedId(v.id);
       setName(v.name);
+      setDeviceType(v.deviceType);
+      setHasScreen(v.hasScreen);
+      setAudioDisplayMode(v.audioDisplayMode);
       setAccepts(v.accepts);
-      setControls(v.controls);
+      setControls({ ...emptyControls(), ...v.controls });
+      setRespectMediaControls(v.respectMediaControls ?? true);
       setResolution(v.resolution);
       if (v.background && v.backgroundType) setBackground({ blob: v.background, mime: v.backgroundType });
       if (v.token && v.tokenType) setToken({ blob: v.token, mime: v.tokenType });
       setSounds(v.sounds ?? {});
+      userTouchedRef.current = { accepts: true, controls: true, screen: true };
     });
     void getViewerPublicId(id).then((p) => { if (p) setPublicId(p); });
   }, [id]);
+
+  // When deviceType changes (and user hasn't manually overridden), realign defaults.
+  function selectDeviceType(t: DeviceType) {
+    setDeviceType(t);
+    if (!userTouchedRef.current.accepts) setAccepts(defaultAcceptsFor(t));
+    if (!userTouchedRef.current.controls) setControls(defaultControlsFor(t));
+    if (!userTouchedRef.current.screen) setHasScreen(t !== "audio");
+  }
 
   const backgroundUrl = useMemo(() => (background ? URL.createObjectURL(background.blob) : null), [background]);
   const tokenUrl = useMemo(() => (token ? URL.createObjectURL(token.blob) : null), [token]);
@@ -82,11 +115,26 @@ function ViewerCreator() {
   useEffect(() => () => { if (tokenUrl) URL.revokeObjectURL(tokenUrl); }, [tokenUrl]);
 
   function toggleAccept(k: ArchiveKind) {
+    userTouchedRef.current.accepts = true;
     setAccepts((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
   }
   function toggleControl(c: ControlAction) {
+    userTouchedRef.current.controls = true;
     setControls((prev) => ({ ...prev, [c]: !prev[c] }));
   }
+
+  // Lista de controles relevante ao perfil de dispositivo (mas sem esconder o resto via "mostrar tudo").
+  const visibleControls: ControlAction[] = useMemo(() => {
+    if (deviceType === "video") return VIDEO_CONTROL_ACTIONS;
+    if (deviceType === "audio") return AUDIO_CONTROL_ACTIONS;
+    // mixed: união preservando ordem
+    const seen = new Set<ControlAction>();
+    const out: ControlAction[] = [];
+    for (const c of [...VIDEO_CONTROL_ACTIONS, ...AUDIO_CONTROL_ACTIONS]) {
+      if (!seen.has(c)) { seen.add(c); out.push(c); }
+    }
+    return out;
+  }, [deviceType]);
 
   function build(): CustomViewer {
     const now = Date.now();
@@ -95,8 +143,12 @@ function ViewerCreator() {
       id: baseId,
       slug: slugify(name || "visualizador"),
       name: name.trim() || "Visualizador sem nome",
+      deviceType,
+      hasScreen,
+      audioDisplayMode,
       accepts,
       controls,
+      respectMediaControls,
       resolution,
       background: background?.blob ?? null,
       backgroundType: background?.mime ?? null,
@@ -152,14 +204,41 @@ function ViewerCreator() {
     });
   }
 
+  const audioDisplayPreviewText = useMemo(() => {
+    switch (audioDisplayMode) {
+      case "none": return "—";
+      case "token": return "[ token da mídia ]";
+      case "playback_image": return "[ imagem de reprodução ]";
+      case "info": return name ? `${name} · ${formatHM(audioDisplayMode)}` : "nome · duração · ▶";
+      case "custom": return "[ personalizado ]";
+    }
+  }, [audioDisplayMode, name]);
+
   return (
     <NoirShell
       title="Criador de Visualizador"
-      subtitle="Forje um dispositivo. Defina o que ele aceita, como ele se vê, como ele soa."
+      subtitle="Forje um dispositivo. TV, rádio, gravador, walkman, vitrola — mesma arquitetura, controles e sons próprios."
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr_1fr]">
         {/* ===== COLUNA ESQUERDA — CONFIGURAÇÃO ===== */}
         <section className="space-y-6 border border-border bg-card/30 p-5">
+          <Block title="Tipo de Dispositivo">
+            <div className="grid grid-cols-3 gap-2">
+              {DEVICE_TYPES.map((t) => (
+                <Toggle
+                  key={t}
+                  active={deviceType === t}
+                  onClick={() => selectDeviceType(t)}
+                >
+                  {DEVICE_TYPE_LABELS[t]}
+                </Toggle>
+              ))}
+            </div>
+            <p className="mt-2 text-typewriter text-[10px] leading-snug text-muted-foreground">
+              {DEVICE_HINTS[deviceType]}
+            </p>
+          </Block>
+
           <Block title="Que arquivos ele abre?">
             <div className="grid grid-cols-2 gap-2">
               {KIND_OPTIONS.map((o) => (
@@ -178,7 +257,7 @@ function ViewerCreator() {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Televisão da Sala"
+              placeholder={deviceType === "audio" ? "Rádio Portátil" : "Televisão da Sala"}
               className="w-full border border-border bg-background/40 px-3 py-2 text-typewriter text-sm text-foreground focus:border-amber-signal focus:outline-none"
             />
             {name && (
@@ -188,26 +267,44 @@ function ViewerCreator() {
             )}
           </Block>
 
-          <Block title="Controles Disponíveis">
-            <div className="grid grid-cols-2 gap-2">
-              {CONTROL_ACTIONS.map((c) => (
-                <Toggle key={c} active={controls[c]} onClick={() => toggleControl(c)}>
-                  {CONTROL_LABELS[c]}
-                </Toggle>
-              ))}
-            </div>
+          <Block title="Tela de Exibição">
+            <label className="flex cursor-pointer items-start gap-3 border border-border bg-background/30 p-3 transition-colors hover:border-amber-signal/60">
+              <input
+                type="checkbox"
+                checked={hasScreen}
+                onChange={(e) => {
+                  userTouchedRef.current.screen = true;
+                  setHasScreen(e.target.checked);
+                }}
+                className="mt-1 accent-amber-signal"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="text-typewriter text-[11px] uppercase tracking-[0.25em] text-foreground">
+                  Possui tela
+                </span>
+                <p className="mt-1 text-typewriter text-[10px] leading-snug text-muted-foreground">
+                  Quando desativado, o visualizador não reserva área de vídeo. Use para rádios, gravadores e tocadores físicos.
+                </p>
+              </div>
+            </label>
           </Block>
 
           <Block title="Resolução Máxima">
             <select
               value={resolution}
               onChange={(e) => setResolution(e.target.value as ViewerResolution)}
-              className="w-full border border-border bg-background/40 px-3 py-2 text-typewriter text-sm text-foreground focus:border-amber-signal focus:outline-none"
+              disabled={!hasScreen}
+              className="w-full border border-border bg-background/40 px-3 py-2 text-typewriter text-sm text-foreground focus:border-amber-signal focus:outline-none disabled:opacity-40"
             >
               {VIEWER_RESOLUTIONS.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
+            {!hasScreen && (
+              <p className="mt-1 text-typewriter text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                sem tela — irrelevante
+              </p>
+            )}
           </Block>
         </section>
 
@@ -219,13 +316,25 @@ function ViewerCreator() {
             ) : (
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,oklch(0.16_0.018_60)_0%,oklch(0.06_0.005_60)_75%)]" />
             )}
-            {/* Device placeholder */}
-            <div className="absolute inset-x-[12%] bottom-[10%] top-[18%] rounded-[24px] border-2 border-[oklch(0.25_0.02_60)] bg-[oklch(0.14_0.012_60)]/90 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.04)]">
-              <div className="relative h-full w-full rounded-[12px] border-[6px] border-black bg-black">
-                <div className="absolute inset-0 flex items-center justify-center text-typewriter text-[10px] uppercase tracking-[0.5em] text-amber-signal/60">
-                  Área de Conteúdo — {resolution}
-                </div>
-              </div>
+
+            {/* Device chassis */}
+            <div className="absolute inset-x-[10%] bottom-[8%] top-[14%] rounded-[24px] border-2 border-[oklch(0.25_0.02_60)] bg-[oklch(0.14_0.012_60)]/90 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.04)]">
+              {hasScreen ? (
+                <DevicePreviewWithScreen
+                  resolution={resolution}
+                  audioMode={audioDisplayMode}
+                  showAudioPanel={accepts.includes("audio")}
+                  tokenUrl={tokenUrl}
+                  name={name}
+                />
+              ) : (
+                <NoScreenDevicePreview
+                  audioMode={audioDisplayMode}
+                  tokenUrl={tokenUrl}
+                  name={name}
+                  controls={controls}
+                />
+              )}
             </div>
           </div>
 
@@ -240,7 +349,7 @@ function ViewerCreator() {
             </div>
             <div className="flex-1">
               <p className="text-typewriter text-[10px] uppercase tracking-[0.3em] text-amber-signal/80">
-                Ícone do Visualizador
+                {DEVICE_TYPE_LABELS[deviceType]} · {hasScreen ? "com tela" : "sem tela"}
               </p>
               <p className="text-serif-noir italic text-muted-foreground">
                 {name || "—"}
@@ -293,10 +402,59 @@ function ViewerCreator() {
               </div>
             </div>
           )}
+
+          <p className="text-typewriter text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+            Pré-visualização do dispositivo: {audioDisplayPreviewText}
+          </p>
         </section>
 
         {/* ===== COLUNA DIREITA — PERSONALIZAÇÃO ===== */}
         <section className="space-y-6 border border-border bg-card/30 p-5">
+          <Block title="Controles Disponíveis">
+            <div className="grid grid-cols-2 gap-2">
+              {visibleControls.map((c) => (
+                <Toggle key={c} active={controls[c]} onClick={() => toggleControl(c)}>
+                  {CONTROL_LABELS[c]}
+                </Toggle>
+              ))}
+            </div>
+            <label className="mt-3 flex cursor-pointer items-start gap-3 border border-border bg-background/30 p-3 transition-colors hover:border-amber-signal/60">
+              <input
+                type="checkbox"
+                checked={respectMediaControls}
+                onChange={(e) => setRespectMediaControls(e.target.checked)}
+                className="mt-1 accent-amber-signal"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="text-typewriter text-[11px] uppercase tracking-[0.25em] text-foreground">
+                  Se adequar à mídia
+                </span>
+                <p className="mt-1 text-typewriter text-[10px] leading-snug text-muted-foreground">
+                  Respeita as funções permitidas pelo próprio arquivo. Uma fita danificada continua sem pausar mesmo num aparelho completo.
+                </p>
+              </div>
+            </label>
+          </Block>
+
+          {(accepts.includes("audio") || deviceType !== "video") && (
+            <Block title="Durante Reprodução de Áudio">
+              <p className="mb-2 text-typewriter text-[10px] leading-snug text-muted-foreground">
+                O que aparece {hasScreen ? "no lugar da tela" : "no painel principal"} quando uma mídia de áudio está tocando.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {AUDIO_DISPLAY_MODES.map((m) => (
+                  <Toggle
+                    key={m}
+                    active={audioDisplayMode === m}
+                    onClick={() => setAudioDisplayMode(m)}
+                  >
+                    {AUDIO_DISPLAY_LABELS[m]}
+                  </Toggle>
+                ))}
+              </div>
+            </Block>
+          )}
+
           <Block title="Background da Cena">
             <FilePicker
               accept="image/*"
@@ -333,19 +491,9 @@ function ViewerCreator() {
             </div>
           </Block>
 
-          <Block title="Editor de Cena">
-            <button
-              disabled
-              className="w-full cursor-not-allowed border border-dashed border-border bg-background/30 py-3 text-typewriter text-[11px] uppercase tracking-[0.3em] text-muted-foreground"
-              title="Em breve"
-            >
-              Editar Cena (em breve)
-            </button>
-          </Block>
-
           <Block title="Editor de Sons">
             <p className="mb-3 text-typewriter text-[10px] leading-relaxed text-muted-foreground">
-              Cada som sobrescreve o padrão do formato da mídia inserida.
+              Cada som sobrescreve o padrão do formato da mídia inserida. Bons exemplos: chiado de sintonia (rádio), motor da fita (walkman), braço da vitrola.
             </p>
             <div className="space-y-2">
               <SoundRow
@@ -354,7 +502,7 @@ function ViewerCreator() {
                 onChange={(f) => setSound("insert", f)}
                 onPlay={() => playSound("insert")}
               />
-              {CONTROL_ACTIONS.map((c) => (
+              {visibleControls.map((c) => (
                 <SoundRow
                   key={c}
                   label={CONTROL_LABELS[c]}
@@ -371,6 +519,117 @@ function ViewerCreator() {
     </NoirShell>
   );
 }
+
+// ============== PREVIEW HELPERS ==============
+
+function DevicePreviewWithScreen({
+  resolution, audioMode, showAudioPanel, tokenUrl, name,
+}: {
+  resolution: ViewerResolution;
+  audioMode: AudioDisplayMode;
+  showAudioPanel: boolean;
+  tokenUrl: string | null;
+  name: string;
+}) {
+  return (
+    <div className="relative h-full w-full rounded-[12px] border-[6px] border-black bg-black">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center">
+        <span className="text-typewriter text-[9px] uppercase tracking-[0.5em] text-amber-signal/60">
+          Área de Conteúdo — {resolution}
+        </span>
+        {showAudioPanel && (
+          <AudioModePreview mode={audioMode} tokenUrl={tokenUrl} name={name} compact />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NoScreenDevicePreview({
+  audioMode, tokenUrl, name, controls,
+}: {
+  audioMode: AudioDisplayMode;
+  tokenUrl: string | null;
+  name: string;
+  controls: Record<ControlAction, boolean>;
+}) {
+  const enabled = AUDIO_CONTROL_ACTIONS.filter((c) => controls[c]);
+  return (
+    <div className="flex h-full w-full flex-col gap-2 rounded-[12px] border border-amber-signal/20 bg-[oklch(0.10_0.01_60)] p-3">
+      <div className="flex-1 border border-amber-signal/20 bg-black/60 p-3">
+        <AudioModePreview mode={audioMode} tokenUrl={tokenUrl} name={name} />
+      </div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {enabled.length === 0 ? (
+          <span className="col-span-4 text-center text-typewriter text-[9px] uppercase tracking-[0.35em] text-muted-foreground">
+            nenhum controle ativo
+          </span>
+        ) : (
+          enabled.map((c) => (
+            <div
+              key={c}
+              className="border border-amber-signal/40 bg-amber-signal/5 px-1 py-1.5 text-center text-typewriter text-[8px] uppercase tracking-[0.2em] text-amber-signal/90"
+            >
+              {CONTROL_LABELS[c]}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AudioModePreview({
+  mode, tokenUrl, name, compact,
+}: {
+  mode: AudioDisplayMode;
+  tokenUrl: string | null;
+  name: string;
+  compact?: boolean;
+}) {
+  const size = compact ? "size-12" : "size-20";
+  switch (mode) {
+    case "none":
+      return (
+        <div className="flex h-full items-center justify-center text-typewriter text-[10px] uppercase tracking-[0.4em] text-muted-foreground">
+          —
+        </div>
+      );
+    case "token":
+    case "playback_image":
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-1">
+          {tokenUrl ? (
+            <img src={tokenUrl} alt="" className={`${size} object-cover`} />
+          ) : (
+            <div className={`${size} border border-border bg-background/40 text-typewriter text-[9px] uppercase tracking-widest text-muted-foreground grid place-content-center`}>
+              {mode === "token" ? "token" : "img"}
+            </div>
+          )}
+          <span className="text-typewriter text-[9px] uppercase tracking-[0.3em] text-amber-signal/70">
+            ▶ {name || "sem título"}
+          </span>
+        </div>
+      );
+    case "info":
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+          <span className="text-serif-noir text-sm text-foreground">{name || "sem título"}</span>
+          <span className="text-typewriter text-[9px] uppercase tracking-[0.4em] text-amber-signal/70">
+            ▶ 00:42 / 03:11
+          </span>
+        </div>
+      );
+    case "custom":
+      return (
+        <div className="flex h-full items-center justify-center text-typewriter text-[10px] uppercase tracking-[0.35em] text-amber-signal/70">
+          [ personalizado ]
+        </div>
+      );
+  }
+}
+
+function formatHM(_: AudioDisplayMode) { return "00:42 / 03:11"; }
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (

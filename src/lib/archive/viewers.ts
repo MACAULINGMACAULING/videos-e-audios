@@ -32,6 +32,33 @@ export const VIEWERS: ViewerDef[] = [
     accepts: ["video", "image"],
   },
   {
+    id: "radio",
+    label: "Rádio",
+    description: "Receptor de rádio. Aceita gravações e transmissões.",
+    accepts: ["audio"],
+  },
+  {
+    id: "cassette-recorder",
+    label: "Gravador Cassete",
+    description: "Aparelho de fita cassete. Aceita gravações magnéticas.",
+    accepts: ["audio"],
+    preferredFormat: "cassette",
+  },
+  {
+    id: "cd-player",
+    label: "CD Player",
+    description: "Reprodutor de CDs de áudio.",
+    accepts: ["audio"],
+    preferredFormat: "cd",
+  },
+  {
+    id: "vinyl-player",
+    label: "Vitrola",
+    description: "Toca-discos de vinil.",
+    accepts: ["audio"],
+    preferredFormat: "vinyl",
+  },
+  {
     id: "computador",
     label: "Computador",
     description: "Estação multipropósito. Aceita todos os formatos.",
@@ -53,7 +80,8 @@ export function canPlay(archive: ArchiveFile, viewerId: ViewerId): boolean {
 /** Visualizadores sugeridos para um dado formato físico. */
 export function suggestedViewersForFormat(format: MediaFormat, kind: ArchiveKind): ViewerId[] {
   const fkind = format.kind;
+  const wildcard = fkind === "other" || fkind === "digital";
   return VIEWERS.filter((v) => v.accepts.includes(kind))
-    .filter((v) => !v.preferredFormat || v.preferredFormat === fkind || fkind === "other")
+    .filter((v) => !v.preferredFormat || v.preferredFormat === fkind || wildcard)
     .map((v) => v.id);
 }

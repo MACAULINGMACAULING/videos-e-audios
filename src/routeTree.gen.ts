@@ -19,6 +19,7 @@ import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authen
 import { Route as AuthenticatedBibliotecaRouteImport } from './routes/_authenticated/biblioteca'
 import { Route as AuthenticatedCriadorVisualizadorRouteImport } from './routes/_authenticated/criador.visualizador'
 import { Route as AuthenticatedCriadorVideoRouteImport } from './routes/_authenticated/criador.video'
+import { Route as AuthenticatedCriadorAudioRouteImport } from './routes/_authenticated/criador.audio'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -73,6 +74,12 @@ const AuthenticatedCriadorVideoRoute =
     path: '/criador/video',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCriadorAudioRoute =
+  AuthenticatedCriadorAudioRouteImport.update({
+    id: '/criador/audio',
+    path: '/criador/audio',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/criar': typeof AuthenticatedCriarRoute
   '/visualizador': typeof AuthenticatedVisualizadorRoute
   '/v/$publicId': typeof VPublicIdRoute
+  '/criador/audio': typeof AuthenticatedCriadorAudioRoute
   '/criador/video': typeof AuthenticatedCriadorVideoRoute
   '/criador/visualizador': typeof AuthenticatedCriadorVisualizadorRoute
 }
@@ -93,6 +101,7 @@ export interface FileRoutesByTo {
   '/criar': typeof AuthenticatedCriarRoute
   '/visualizador': typeof AuthenticatedVisualizadorRoute
   '/v/$publicId': typeof VPublicIdRoute
+  '/criador/audio': typeof AuthenticatedCriadorAudioRoute
   '/criador/video': typeof AuthenticatedCriadorVideoRoute
   '/criador/visualizador': typeof AuthenticatedCriadorVisualizadorRoute
 }
@@ -106,6 +115,7 @@ export interface FileRoutesById {
   '/_authenticated/criar': typeof AuthenticatedCriarRoute
   '/_authenticated/visualizador': typeof AuthenticatedVisualizadorRoute
   '/v/$publicId': typeof VPublicIdRoute
+  '/_authenticated/criador/audio': typeof AuthenticatedCriadorAudioRoute
   '/_authenticated/criador/video': typeof AuthenticatedCriadorVideoRoute
   '/_authenticated/criador/visualizador': typeof AuthenticatedCriadorVisualizadorRoute
 }
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/criar'
     | '/visualizador'
     | '/v/$publicId'
+    | '/criador/audio'
     | '/criador/video'
     | '/criador/visualizador'
   fileRoutesByTo: FileRoutesByTo
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/criar'
     | '/visualizador'
     | '/v/$publicId'
+    | '/criador/audio'
     | '/criador/video'
     | '/criador/visualizador'
   id:
@@ -142,6 +154,7 @@ export interface FileRouteTypes {
     | '/_authenticated/criar'
     | '/_authenticated/visualizador'
     | '/v/$publicId'
+    | '/_authenticated/criador/audio'
     | '/_authenticated/criador/video'
     | '/_authenticated/criador/visualizador'
   fileRoutesById: FileRoutesById
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCriadorVideoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/criador/audio': {
+      id: '/_authenticated/criador/audio'
+      path: '/criador/audio'
+      fullPath: '/criador/audio'
+      preLoaderRoute: typeof AuthenticatedCriadorAudioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -233,6 +253,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedCriarRoute: typeof AuthenticatedCriarRoute
   AuthenticatedVisualizadorRoute: typeof AuthenticatedVisualizadorRoute
+  AuthenticatedCriadorAudioRoute: typeof AuthenticatedCriadorAudioRoute
   AuthenticatedCriadorVideoRoute: typeof AuthenticatedCriadorVideoRoute
   AuthenticatedCriadorVisualizadorRoute: typeof AuthenticatedCriadorVisualizadorRoute
 }
@@ -242,6 +263,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedCriarRoute: AuthenticatedCriarRoute,
   AuthenticatedVisualizadorRoute: AuthenticatedVisualizadorRoute,
+  AuthenticatedCriadorAudioRoute: AuthenticatedCriadorAudioRoute,
   AuthenticatedCriadorVideoRoute: AuthenticatedCriadorVideoRoute,
   AuthenticatedCriadorVisualizadorRoute: AuthenticatedCriadorVisualizadorRoute,
 }
@@ -258,13 +280,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
