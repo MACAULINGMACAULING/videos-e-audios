@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VhsOverlay } from "@/components/vhs-overlay";
 import { readArchiveFile } from "@/lib/archive/export";
-import type { ArchiveFile, MediaFormat, VideoArchive } from "@/lib/archive/types";
+import type { ArchiveFile, AudioArchive, MediaFormat, VideoArchive } from "@/lib/archive/types";
 import type { Tape } from "@/lib/tape-types";
 import { startRewind } from "@/lib/vhs-audio";
 import { preloadMediaSounds } from "@/lib/archive/media-sounds";
@@ -14,6 +14,7 @@ import {
   type CustomViewer,
 } from "@/lib/archive/viewer-types";
 import { InspectionOverlay } from "@/components/inspection-overlay";
+import { AudioPlayer } from "@/components/audio-player";
 
 export const Route = createFileRoute("/v/$publicId")({
   ssr: false,
@@ -60,7 +61,9 @@ function PublicPlayer() {
 
   const [stage, setStage] = useState<Stage>("empty");
   const [pendingTape, setPendingTape] = useState<Tape | null>(null);
+  const [pendingAudio, setPendingAudio] = useState<AudioArchive | null>(null);
   const [tape, setTape] = useState<Tape | null>(null);
+  const [audioArchive, setAudioArchive] = useState<AudioArchive | null>(null);
   const [format, setFormat] = useState<MediaFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,10 +74,10 @@ function PublicPlayer() {
 
   // Cadeia de áudio: MÍDIA > VISUALIZADOR > FORMATO > SISTEMA.
   const soundSources = useMemo<SoundChainSources>(() => ({
-    mediaCustom: (tape ?? pendingTape)?.customSounds,
+    mediaCustom: (tape ?? pendingTape)?.customSounds ?? audioArchive?.customSounds ?? pendingAudio?.customSounds,
     viewerCustom: customViewer?.sounds,
     mediaFormat: format,
-  }), [tape, pendingTape, customViewer, format]);
+  }), [tape, pendingTape, audioArchive, pendingAudio, customViewer, format]);
 
   const playSound = useCallback(
     (key: Parameters<typeof playChainedSound>[0]) => playChainedSound(key, soundSources),
@@ -105,12 +108,17 @@ function PublicPlayer() {
         setError(`Mídia incompatível com este dispositivo (${deviceLabel}).`);
         return;
       }
-      if (archive.kind !== "video") {
-        setError("Este visualizador ainda só reproduz vídeo. Use um aparelho compatível com áudio.");
-        return;
-      }
       preloadMediaSounds(archive.format);
       setFormat(archive.format);
+      if (archive.kind === "audio") {
+        setPendingAudio(archive);
+        setStage("preview");
+        return;
+      }
+      if (archive.kind !== "video") {
+        setError("Este visualizador ainda não reproduz esse tipo de mídia.");
+        return;
+      }
       setPendingTape(archiveToTape(archive));
       setStage("preview");
     } catch (e) {
@@ -119,12 +127,21 @@ function PublicPlayer() {
   }
 
   function handleConfirmInsert() {
-    if (!pendingTape) return;
+    if (!pendingTape && !pendingAudio) return;
     playSound("insert");
     setStage("inserting");
-    setTimeout(() => { setStage("loading"); setTape(pendingTape); }, 1300);
+    setTimeout(() => {
+      if (pendingAudio) {
+        setAudioArchive(pendingAudio);
+        setPendingAudio(null);
+        setStage("playing");
+      } else if (pendingTape) {
+        setStage("loading");
+        setTape(pendingTape);
+      }
+    }, 1300);
   }
-  function handleCancelPreview() { setPendingTape(null); setFormat(null); setStage("empty"); }
+  function handleCancelPreview() { setPendingTape(null); setPendingAudio(null); setFormat(null); setStage("empty"); }
 
   function handleVideoLoaded() {
     if (!videoRef.current) return;
