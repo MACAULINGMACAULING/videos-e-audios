@@ -461,6 +461,27 @@ function ViewerCreator() {
                   </Toggle>
                 ))}
               </div>
+
+              <div className="mt-4 space-y-2">
+                <QolCheck
+                  label="Exibir onda sonora"
+                  hint="Visualização animada estilo Audacity/Audition durante a reprodução."
+                  checked={showWaveform}
+                  onChange={setShowWaveform}
+                />
+                <QolCheck
+                  label="Permitir legendas"
+                  hint="Jogador pode abrir/fechar a transcrição da mídia (se houver)."
+                  checked={allowSubtitles}
+                  onChange={setAllowSubtitles}
+                />
+                <QolCheck
+                  label="Usar token do visualizador como exibição"
+                  hint="A imagem do próprio aparelho (rádio, walkman, vitrola) ocupa o painel central."
+                  checked={useTokenAsDisplay}
+                  onChange={setUseTokenAsDisplay}
+                />
+              </div>
             </Block>
           )}
 
