@@ -235,7 +235,7 @@ function Visualizador() {
     const v = videoRef.current;
     v.pause();
     setPlaying(false);
-    const stopAudio = startRewind(dir);
+    const stopAudio = () => {};
     let last = performance.now();
     const speed = 6; // seconds per real second
     const tick = (now: number) => {
